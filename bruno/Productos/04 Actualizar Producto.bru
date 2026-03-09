@@ -1,0 +1,24 @@
+meta {
+  name: Actualizar Producto
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{base_url}}/productos/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "precio_venta_min": 5500,
+    "precio_promo": 4900,
+    "stock": 75,
+    "activo": true
+  }
+}

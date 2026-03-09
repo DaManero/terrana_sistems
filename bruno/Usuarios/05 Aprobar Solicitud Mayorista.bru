@@ -1,0 +1,22 @@
+meta {
+  name: Aprobar o Rechazar Solicitud Mayorista
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{base_url}}/users/mayorista/solicitudes/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "estado": "aprobado",
+    "mensaje_admin": "Bienvenido como cliente mayorista de Terrana."
+  }
+}

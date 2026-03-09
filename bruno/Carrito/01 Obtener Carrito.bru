@@ -1,0 +1,15 @@
+meta {
+  name: Obtener Carrito
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/carrito
+  body: none
+  auth: none
+}
+
+headers {
+  x-session-id: sess_test_123
+}

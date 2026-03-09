@@ -1,0 +1,15 @@
+meta {
+  name: Listar Codigos de Descuento
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/codigos-descuento
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

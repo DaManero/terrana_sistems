@@ -1,0 +1,20 @@
+meta {
+  name: Clientes Nuevos
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/reportes/clientes/nuevos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+params:query {
+  ~desde: 2026-01-01
+  ~hasta: 2026-12-31
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Actualizar Cantidad Item
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{base_url}}/carrito/items/1
+  body: json
+  auth: none
+}
+
+headers {
+  x-session-id: sess_test_123
+}
+
+body:json {
+  {
+    "cantidad": 3
+  }
+}

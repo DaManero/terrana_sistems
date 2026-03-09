@@ -1,0 +1,15 @@
+meta {
+  name: Eliminar Item del Carrito
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{base_url}}/carrito/items/1
+  body: none
+  auth: none
+}
+
+headers {
+  x-session-id: sess_test_123
+}

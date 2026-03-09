@@ -1,0 +1,23 @@
+meta {
+  name: Ajustar Stock
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/productos/1/stock
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "tipo": "ajuste_manual",
+    "cantidad": 10,
+    "motivo": "Corrección de inventario físico"
+  }
+}

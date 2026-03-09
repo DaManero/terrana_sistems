@@ -1,0 +1,26 @@
+meta {
+  name: Crear Venta (guest)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/ventas
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "guest_nombre": "María García",
+    "guest_email": "maria@ejemplo.com",
+    "guest_telefono": "11-9999-8888",
+    "tipo_cliente": "minorista",
+    "metodo_envio_id": 2,
+    "domicilio_envio": "Av. Corrientes 1234, CABA",
+    "items": [
+      { "producto_id": 1, "cantidad": 2 },
+      { "producto_id": 5, "cantidad": 1 }
+    ]
+  }
+}

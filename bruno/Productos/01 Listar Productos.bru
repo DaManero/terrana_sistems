@@ -1,0 +1,23 @@
+meta {
+  name: Listar Productos
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/productos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+params:query {
+  ~pagina: 1
+  ~limite: 20
+  ~categoria_id: 
+  ~activo: true
+  ~buscar: 
+}

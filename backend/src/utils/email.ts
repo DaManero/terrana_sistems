@@ -1,0 +1,100 @@
+// nodemailer v8 es ESM-only; usamos require para compatibilidad con CommonJS
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const nodemailer = require('nodemailer') as typeof import('nodemailer');
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT ?? 587),
+  secure: process.env.SMTP_PORT === '465',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+interface EmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+}
+
+export async function enviarEmail(options: EmailOptions): Promise<void> {
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM ?? 'no-reply@terrana.com',
+    ...options,
+  });
+}
+
+// ─── Templates ────────────────────────────────────────────────────────────────
+
+export function templateConfirmacionPedido(params: {
+  nombre: string;
+  numeroPedido: string;
+  total: string;
+}): string {
+  return `
+    <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; color: #1c1a13;">
+      <h1 style="color: #594d0e;">¡Pedido confirmado!</h1>
+      <p>Hola <strong>${params.nombre}</strong>,</p>
+      <p>Tu pedido <strong>${params.numeroPedido}</strong> fue confirmado correctamente.</p>
+      <p>Total: <strong>$${params.total}</strong></p>
+      <p>Te avisaremos cuando sea despachado.</p>
+      <p style="color: #4a4535;">El equipo de Terrana</p>
+    </div>
+  `;
+}
+
+export function templateSetPassword(params: {
+  nombre: string;
+  link: string;
+}): string {
+  return `
+    <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; color: #1c1a13;">
+      <h1 style="color: #594d0e;">Activá tu cuenta</h1>
+      <p>Hola <strong>${params.nombre}</strong>,</p>
+      <p>Tu pedido fue procesado. Hacé clic en el botón para crear una contraseña y acceder a tu cuenta:</p>
+      <p>
+        <a href="${params.link}"
+           style="background: #594d0e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+          Crear contraseña
+        </a>
+      </p>
+      <p style="color: #9c9485; font-size: 14px;">Este link vence en 24 horas.</p>
+      <p style="color: #4a4535;">El equipo de Terrana</p>
+    </div>
+  `;
+}
+
+export function templateResetPassword(params: {
+  nombre: string;
+  link: string;
+}): string {
+  return `
+    <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; color: #1c1a13;">
+      <h1 style="color: #594d0e;">Recuperar contraseña</h1>
+      <p>Hola <strong>${params.nombre}</strong>,</p>
+      <p>Recibimos una solicitud para restablecer tu contraseña. Hacé clic en el botón:</p>
+      <p>
+        <a href="${params.link}"
+           style="background: #594d0e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+          Restablecer contraseña
+        </a>
+      </p>
+      <p style="color: #9c9485; font-size: 14px;">Este link vence en 1 hora.</p>
+      <p style="color: #9c9485; font-size: 14px;">Si no solicitaste esto, ignorá este email.</p>
+      <p style="color: #4a4535;">El equipo de Terrana</p>
+    </div>
+  `;
+}
+
+export function templatePasswordCambiada(params: { nombre: string }): string {
+  return `
+    <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; color: #1c1a13;">
+      <h1 style="color: #594d0e;">Contraseña actualizada</h1>
+      <p>Hola <strong>${params.nombre}</strong>,</p>
+      <p>Tu contraseña fue cambiada exitosamente.</p>
+      <p style="color: #9c9485; font-size: 14px;">Si no realizaste este cambio, contactanos de inmediato.</p>
+      <p style="color: #4a4535;">El equipo de Terrana</p>
+    </div>
+  `;
+}

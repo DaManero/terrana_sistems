@@ -1,0 +1,15 @@
+meta {
+  name: Historial de Movimientos de Stock
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/stock/1/movimientos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

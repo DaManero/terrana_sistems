@@ -1,0 +1,19 @@
+meta {
+  name: Productos Mas Vendidos
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/reportes/productos/mas-vendidos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+params:query {
+  ~limite: 10
+}

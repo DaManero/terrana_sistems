@@ -1,0 +1,22 @@
+meta {
+  name: Agregar Item al Carrito
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/carrito/items
+  body: json
+  auth: none
+}
+
+headers {
+  x-session-id: sess_test_123
+}
+
+body:json {
+  {
+    "producto_id": 1,
+    "cantidad": 2
+  }
+}

@@ -1,0 +1,28 @@
+meta {
+  name: Crear Codigo de Descuento
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/codigos-descuento
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "codigo": "BIENVENIDO10",
+    "tipo": "porcentaje",
+    "valor": 10,
+    "minimo_compra": 5000,
+    "usos_maximos": 100,
+    "aplica_a": "todos",
+    "valido_hasta": "2026-12-31T23:59:59.000Z",
+    "activo": true
+  }
+}

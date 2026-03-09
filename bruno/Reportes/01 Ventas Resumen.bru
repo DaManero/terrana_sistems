@@ -1,0 +1,20 @@
+meta {
+  name: Reporte Ventas Resumen
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/reportes/ventas/resumen
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+params:query {
+  ~desde: 2026-01-01
+  ~hasta: 2026-12-31
+}

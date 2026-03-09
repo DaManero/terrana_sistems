@@ -1,0 +1,21 @@
+meta {
+  name: Crear Categoria
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/categorias
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "nombre": "Conservas"
+  }
+}

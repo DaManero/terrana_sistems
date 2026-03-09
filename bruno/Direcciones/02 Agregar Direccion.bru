@@ -1,0 +1,28 @@
+meta {
+  name: Agregar Direccion
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/direcciones
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "alias": "Casa",
+    "calle": "Av. Santa Fe 2500",
+    "piso_depto": "3B",
+    "localidad": "Buenos Aires",
+    "provincia": "CABA",
+    "codigo_postal": "1425",
+    "telefono": "11-5555-6666",
+    "predeterminada": true
+  }
+}

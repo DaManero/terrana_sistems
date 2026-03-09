@@ -1,0 +1,21 @@
+meta {
+  name: Actualizar Estado Venta
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{base_url}}/ventas/1/estado
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "estado": "preparando"
+  }
+}

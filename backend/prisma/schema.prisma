@@ -1,0 +1,444 @@
+// ─────────────────────────────────────────────────────────────────────────────
+//  Terrana — Prisma Schema
+//  Fuente de verdad de toda la estructura de la base de datos.
+//  Ante cualquier cambio en el modelo de datos, modificar este archivo
+//  y ejecutar: npx prisma migrate dev --name descripcion_del_cambio
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ROLES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Rol {
+  id      Int    @id @default(autoincrement())
+  nombre  String @unique @db.VarChar(50)
+
+  users   User[]
+
+  @@map("roles")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  USERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id         Int      @id @default(autoincrement())
+  nombre     String   @db.VarChar(100)
+  apellido   String   @db.VarChar(100)
+  email      String   @unique @db.VarChar(150)
+  password   String?  @db.VarChar(255)
+  cel        String?  @db.VarChar(30)
+  rol_id     Int
+  activo     Boolean  @default(true)
+  aprobado   Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  rol                   Rol                    @relation(fields: [rol_id], references: [id])
+  direcciones           Direccion[]
+  ventas                Venta[]                @relation("ClienteVentas")
+  ventas_creadas        Venta[]                @relation("OperadorVentas")
+  carrito               Carrito?
+  solicitudes_mayorista SolicitudMayorista[]   @relation("UsuarioSolicitudes")
+  solicitudes_revisadas SolicitudMayorista[]   @relation("AdminSolicitudes")
+  stock_movimientos     StockMovimiento[]
+  etiquetas_generadas   EtiquetaEnvio[]        @relation("GeneradorEtiqueta")
+  etiquetas_impresas    EtiquetaEnvio[]        @relation("ImpresorEtiqueta")
+  password_tokens       PasswordResetToken[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CATEGORÍAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Categoria {
+  id            Int            @id @default(autoincrement())
+  nombre        String         @unique @db.VarChar(100)
+
+  subcategorias Subcategoria[]
+  productos     Producto[]
+
+  @@map("categorias")
+}
+
+model Subcategoria {
+  id           Int       @id @default(autoincrement())
+  nombre       String    @db.VarChar(100)
+  categoria_id Int
+
+  categoria    Categoria @relation(fields: [categoria_id], references: [id])
+  productos    Producto[]
+
+  @@map("subcategorias")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MARCAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Marca {
+  id       Int       @id @default(autoincrement())
+  nombre   String    @unique @db.VarChar(100)
+
+  productos Producto[]
+
+  @@map("marcas")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PRESENTACIONES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Presentacion {
+  id        Int       @id @default(autoincrement())
+  nombre    String    @unique @db.VarChar(100)
+
+  productos Producto[]
+
+  @@map("presentaciones")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ORIGENES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Origen {
+  id        Int       @id @default(autoincrement())
+  nombre    String    @unique @db.VarChar(100)
+
+  productos Producto[]
+
+  @@map("origenes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PROVEEDORES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Proveedor {
+  id         Int       @id @default(autoincrement())
+  nombre     String    @db.VarChar(150)
+  contacto   String?   @db.VarChar(100)
+  email      String?   @db.VarChar(150)
+  telefono   String?   @db.VarChar(30)
+  direccion  String?
+  notas      String?
+  activo     Boolean   @default(true)
+  created_at DateTime  @default(now())
+
+  productos  Producto[]
+
+  @@map("proveedores")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PRODUCTOS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Producto {
+  id                 Int      @id @default(autoincrement())
+  nombre             String   @db.VarChar(200)
+  descripcion        String?
+  uso_recomendado    String?
+  categoria_id       Int
+  subcategoria_id    Int?
+  marca_id           Int?
+  presentacion_id    Int?
+  origen_id          Int?
+  proveedor_id       Int?
+  costo              Decimal? @db.Decimal(12, 2)
+  precio_venta_may   Decimal  @db.Decimal(12, 2)
+  precio_venta_min   Decimal  @db.Decimal(12, 2)
+  precio_promo       Decimal? @db.Decimal(12, 2)
+  stock              Int      @default(0)
+  imagen_url         String?
+  activo             Boolean  @default(true)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  categoria          Categoria       @relation(fields: [categoria_id], references: [id])
+  subcategoria       Subcategoria?   @relation(fields: [subcategoria_id], references: [id])
+  marca              Marca?          @relation(fields: [marca_id], references: [id])
+  presentacion       Presentacion?   @relation(fields: [presentacion_id], references: [id])
+  origen             Origen?         @relation(fields: [origen_id], references: [id])
+  proveedor          Proveedor?      @relation(fields: [proveedor_id], references: [id])
+  venta_items        VentaItem[]
+  carrito_items      CarritoItem[]
+  stock_movimientos  StockMovimiento[]
+  etiquetas          ProductoEtiqueta[]
+
+  @@map("productos")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  VENTAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Venta {
+  id                   Int      @id @default(autoincrement())
+  numero_pedido        String   @unique @db.VarChar(20)
+  cliente_id           Int?
+  guest_nombre         String?  @db.VarChar(150)
+  guest_email          String?  @db.VarChar(150)
+  guest_telefono       String?  @db.VarChar(30)
+  fecha                DateTime @default(now())
+  estado               String   @default("pendiente") @db.VarChar(30)
+  canal                String   @default("ecommerce") @db.VarChar(30)
+  tipo_cliente         String   @db.VarChar(20)
+  subtotal             Decimal  @db.Decimal(12, 2)
+  descuento            Decimal  @default(0) @db.Decimal(12, 2)
+  costo_envio          Decimal  @default(0) @db.Decimal(12, 2)
+  total                Decimal  @db.Decimal(12, 2)
+  metodo_pago          String?  @db.VarChar(50)
+  pago_estado          String   @default("pendiente") @db.VarChar(30)
+  mp_payment_id        String?  @db.VarChar(100)
+  metodo_envio_id      Int?
+  direccion_id         Int?
+  domicilio_envio      String?
+  codigo_descuento_id  Int?
+  notas                String?
+  creado_por           Int?
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  cliente              User?              @relation("ClienteVentas", fields: [cliente_id], references: [id])
+  operador             User?              @relation("OperadorVentas", fields: [creado_por], references: [id])
+  metodo_envio         MetodoEnvio?       @relation(fields: [metodo_envio_id], references: [id])
+  direccion            Direccion?         @relation(fields: [direccion_id], references: [id])
+  codigo_descuento     CodigoDescuento?   @relation(fields: [codigo_descuento_id], references: [id])
+  items                VentaItem[]
+  etiquetas_envio      EtiquetaEnvio[]
+
+  @@map("ventas")
+}
+
+model VentaItem {
+  id               Int     @id @default(autoincrement())
+  venta_id         Int
+  producto_id      Int
+  cantidad         Int
+  precio_unitario  Decimal @db.Decimal(12, 2)
+  subtotal         Decimal @db.Decimal(12, 2)
+
+  venta    Venta    @relation(fields: [venta_id], references: [id])
+  producto Producto @relation(fields: [producto_id], references: [id])
+
+  @@map("venta_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  DIRECCIONES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Direccion {
+  id             Int      @id @default(autoincrement())
+  usuario_id     Int
+  alias          String?  @db.VarChar(80)
+  calle          String   @db.VarChar(150)
+  piso_depto     String?  @db.VarChar(50)
+  localidad      String   @db.VarChar(100)
+  provincia      String   @db.VarChar(100)
+  codigo_postal  String   @db.VarChar(10)
+  pais           String   @default("Argentina") @db.VarChar(60)
+  telefono       String?  @db.VarChar(30)
+  predeterminada Boolean  @default(false)
+  created_at     DateTime @default(now())
+
+  usuario User    @relation(fields: [usuario_id], references: [id])
+  ventas  Venta[]
+
+  @@map("direcciones")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  STOCK MOVIMIENTOS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model StockMovimiento {
+  id            Int      @id @default(autoincrement())
+  producto_id   Int
+  tipo          String   @db.VarChar(30)
+  cantidad      Int
+  stock_antes   Int
+  stock_despues Int
+  referencia_id Int?
+  motivo        String?
+  usuario_id    Int?
+  created_at    DateTime @default(now())
+
+  producto Producto @relation(fields: [producto_id], references: [id])
+  usuario  User?    @relation(fields: [usuario_id], references: [id])
+
+  @@map("stock_movimientos")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CARRITO
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Carrito {
+  id         Int      @id @default(autoincrement())
+  usuario_id Int?     @unique
+  session_id String?  @unique @db.VarChar(100)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  usuario User?         @relation(fields: [usuario_id], references: [id])
+  items   CarritoItem[]
+
+  @@map("carrito")
+}
+
+model CarritoItem {
+  id          Int      @id @default(autoincrement())
+  carrito_id  Int
+  producto_id Int
+  cantidad    Int
+  created_at  DateTime @default(now())
+
+  carrito  Carrito  @relation(fields: [carrito_id], references: [id])
+  producto Producto @relation(fields: [producto_id], references: [id])
+
+  @@unique([carrito_id, producto_id])
+  @@map("carrito_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SOLICITUDES MAYORISTA
+// ─────────────────────────────────────────────────────────────────────────────
+
+model SolicitudMayorista {
+  id                Int      @id @default(autoincrement())
+  usuario_id        Int
+  estado            String   @default("pendiente") @db.VarChar(20)
+  mensaje_cliente   String?
+  mensaje_admin     String?
+  revisado_por      Int?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  usuario User  @relation("UsuarioSolicitudes", fields: [usuario_id], references: [id])
+  admin   User? @relation("AdminSolicitudes", fields: [revisado_por], references: [id])
+
+  @@map("solicitudes_mayorista")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CÓDIGOS DE DESCUENTO
+// ─────────────────────────────────────────────────────────────────────────────
+
+model CodigoDescuento {
+  id                 Int       @id @default(autoincrement())
+  codigo             String    @unique @db.VarChar(50)
+  tipo               String    @db.VarChar(20)
+  valor              Decimal   @db.Decimal(10, 2)
+  minimo_compra      Decimal?  @db.Decimal(12, 2)
+  usos_maximos       Int?
+  usos_por_usuario   Int?
+  usos_actuales      Int       @default(0)
+  aplica_a           String    @default("todos") @db.VarChar(20)
+  valido_desde       DateTime?
+  valido_hasta       DateTime?
+  activo             Boolean   @default(true)
+  created_at         DateTime  @default(now())
+
+  ventas Venta[]
+
+  @@map("codigos_descuento")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MÉTODOS DE ENVÍO
+// ─────────────────────────────────────────────────────────────────────────────
+
+model MetodoEnvio {
+  id            Int      @id @default(autoincrement())
+  nombre        String   @db.VarChar(100)
+  descripcion   String?
+  costo         Decimal  @db.Decimal(10, 2)
+  gratis_desde  Decimal? @db.Decimal(12, 2)
+  activo        Boolean  @default(true)
+
+  ventas Venta[]
+
+  @@map("metodos_envio")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ETIQUETAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Etiqueta {
+  id       Int    @id @default(autoincrement())
+  nombre   String @unique @db.VarChar(80)
+  slug     String @unique @db.VarChar(80)
+  color    String @db.VarChar(7)
+
+  productos ProductoEtiqueta[]
+
+  @@map("etiquetas")
+}
+
+model ProductoEtiqueta {
+  producto_id Int
+  etiqueta_id Int
+
+  producto Producto @relation(fields: [producto_id], references: [id])
+  etiqueta Etiqueta @relation(fields: [etiqueta_id], references: [id])
+
+  @@id([producto_id, etiqueta_id])
+  @@map("producto_etiquetas")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ETIQUETAS DE ENVÍO
+// ─────────────────────────────────────────────────────────────────────────────
+
+model EtiquetaEnvio {
+  id            Int      @id @default(autoincrement())
+  venta_id      Int
+  generada_por  Int
+  generada_at   DateTime @default(now())
+  impresa       Boolean  @default(false)
+  impresa_por   Int?
+  impresa_at    DateTime?
+  copias        Int      @default(1)
+  notas         String?
+
+  venta     Venta @relation(fields: [venta_id], references: [id])
+  generador User  @relation("GeneradorEtiqueta", fields: [generada_por], references: [id])
+  impresor  User? @relation("ImpresorEtiqueta", fields: [impresa_por], references: [id])
+
+  @@map("etiquetas_envio")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PASSWORD RESET TOKENS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PasswordResetToken {
+  id         Int      @id @default(autoincrement())
+  usuario_id Int
+  token      String   @unique @db.VarChar(255)
+  tipo       String   @db.VarChar(20)
+  usado      Boolean  @default(false)
+  expira_at  DateTime
+  created_at DateTime @default(now())
+
+  usuario User @relation(fields: [usuario_id], references: [id])
+
+  @@map("password_reset_tokens")
+}

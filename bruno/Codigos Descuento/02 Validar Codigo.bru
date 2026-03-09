@@ -1,0 +1,18 @@
+meta {
+  name: Validar Codigo
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/codigos-descuento/validar
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "codigo": "BIENVENIDO10",
+    "subtotal": 15000
+  }
+}

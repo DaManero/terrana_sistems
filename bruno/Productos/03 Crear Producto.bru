@@ -1,0 +1,31 @@
+meta {
+  name: Crear Producto
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/productos
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "nombre": "Aceite de Oliva Extra Virgen Premium",
+    "descripcion": "Primera extracción en frío, cosecha temprana.",
+    "uso_recomendado": "Ideal para consumir en crudo.",
+    "categoria_id": 1,
+    "marca_id": 1,
+    "presentacion_id": 2,
+    "origen_id": 1,
+    "costo": 3000,
+    "precio_venta_may": 4200,
+    "precio_venta_min": 5800,
+    "stock": 50
+  }
+}

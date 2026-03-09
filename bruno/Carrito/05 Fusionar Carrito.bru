@@ -1,0 +1,21 @@
+meta {
+  name: Fusionar Carrito (post-login)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/carrito/fusionar
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "session_id": "sess_test_123"
+  }
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Listar Ventas
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/ventas
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+params:query {
+  ~pagina: 1
+  ~limite: 20
+  ~estado: 
+  ~pago_estado: 
+}

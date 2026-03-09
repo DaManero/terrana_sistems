@@ -1,0 +1,23 @@
+meta {
+  name: Ajuste Manual de Stock
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/stock/1/ajuste
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "tipo": "ajuste_manual",
+    "cantidad": -5,
+    "motivo": "Producto dañado en depósito"
+  }
+}

@@ -1,0 +1,27 @@
+meta {
+  name: Crear Venta (autenticado)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/ventas
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "tipo_cliente": "minorista",
+    "metodo_envio_id": 1,
+    "items": [
+      { "producto_id": 1, "cantidad": 1 },
+      { "producto_id": 9, "cantidad": 2 }
+    ],
+    "notas": "Sin gluten por favor"
+  }
+}

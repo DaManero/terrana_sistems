@@ -1,0 +1,21 @@
+meta {
+  name: Registrar Usuario
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/auth/registrar
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "nombre": "Juan",
+    "apellido": "Pérez",
+    "email": "juan@ejemplo.com",
+    "password": "Contraseña123",
+    "cel": "11-1234-5678"
+  }
+}

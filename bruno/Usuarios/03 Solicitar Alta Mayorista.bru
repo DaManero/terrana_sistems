@@ -1,0 +1,21 @@
+meta {
+  name: Solicitar Alta Mayorista
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/users/mayorista/solicitar
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "mensaje_cliente": "Tengo un local de delicatessen en Palermo, compro en cantidades regulares."
+  }
+}

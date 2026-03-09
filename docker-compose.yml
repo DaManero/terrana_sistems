@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: terrana_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: terrana
+      POSTGRES_USER: terrana_user
+      POSTGRES_PASSWORD: terrana_pass
+    ports:
+      - "5499:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - terrana_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: terrana_backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://terrana_user:terrana_pass@postgres:5432/terrana
+      NODE_ENV: development
+    env_file:
+      - .env
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - terrana_net
+    command: npm run dev
+
+  ecommerce:
+    build:
+      context: ./ecommerce
+      dockerfile: Dockerfile.dev
+    container_name: terrana_ecommerce
+    restart: unless-stopped
+    depends_on:
+      - backend
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./ecommerce:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - terrana_net
+    command: npm run dev
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile.dev
+    container_name: terrana_admin
+    restart: unless-stopped
+    depends_on:
+      - backend
+    env_file:
+      - .env
+    environment:
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./admin:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - terrana_net
+    command: npm run dev
+
+volumes:
+  postgres_data:
+
+networks:
+  terrana_net:
+    driver: bridge

@@ -1,0 +1,26 @@
+meta {
+  name: Crear Proveedor
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/proveedores
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "nombre": "Importadora Del Mar",
+    "contacto": "Carlos Rodríguez",
+    "email": "carlos@delmar.com",
+    "telefono": "011-4444-5555",
+    "direccion": "Av. de Mayo 500, CABA",
+    "notas": "Importador de productos mediterráneos"
+  }
+}
