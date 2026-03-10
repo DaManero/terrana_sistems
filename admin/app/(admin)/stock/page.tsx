@@ -24,7 +24,6 @@ export default function StockPage() {
         <p className="text-sm text-muted-foreground">Historial de movimientos y ajustes de inventario</p>
       </div>
 
-      {/* Tab nav */}
       <div className="border-b border-border">
         <nav className="flex gap-1 overflow-x-auto">
           {TABS.map((tab) => (
@@ -44,7 +43,6 @@ export default function StockPage() {
         </nav>
       </div>
 
-      {/* Contenido */}
       <div>
         {activeTab === 'historial'  && <TabHistorial />}
         {activeTab === 'stock-bajo' && <TabStockBajo />}

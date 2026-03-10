@@ -45,7 +45,7 @@ export function TabAjuste() {
       api.post('/stock/ajuste', payload).then((r) => r.data),
     onSuccess: (data) => {
       toast.success('Ajuste registrado', {
-        description: `Stock actualizado: ${data.stock_anterior} → ${data.stock_nuevo}`,
+        description: `Stock actualizado: ${data.stock_anterior} a ${data.stock_nuevo}`,
       });
       qc.invalidateQueries({ queryKey: ['stock'] });
       qc.invalidateQueries({ queryKey: ['reportes', 'stock-bajo'] });
@@ -56,7 +56,7 @@ export function TabAjuste() {
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
       toast.error('Error al ajustar stock', {
-        description: err.response?.data?.message ?? 'Verificá los datos ingresados.',
+        description: err.response?.data?.message ?? 'Verifica los datos ingresados.',
       });
     },
   });
@@ -81,13 +81,11 @@ export function TabAjuste() {
         <CardHeader>
           <CardTitle className="text-base">Ajuste manual de stock</CardTitle>
           <CardDescription>
-            Usá valores positivos para entradas y negativos para salidas.
+            Usa valores positivos para entradas y negativos para salidas.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-
-            {/* Buscador de producto */}
             <div className="space-y-1.5">
               <Label>Producto</Label>
               {productoSeleccionado ? (
@@ -133,19 +131,12 @@ export function TabAjuste() {
               )}
             </div>
 
-            {/* Cantidad */}
             <div className="space-y-1.5">
               <Label htmlFor="cantidad">
-                Cantidad{' '}
-                <span className="text-muted-foreground font-normal text-xs">(+ entrada / − salida)</span>
+                Cantidad <span className="text-muted-foreground font-normal text-xs">(+ entrada / - salida)</span>
               </Label>
               <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCantidad((v) => String((Number(v) || 0) + 1))}
-                >
+                <Button type="button" variant="outline" size="icon" onClick={() => setCantidad((v) => String((Number(v) || 0) + 1))}>
                   <PackagePlus className="h-4 w-4" />
                 </Button>
                 <Input
@@ -156,35 +147,28 @@ export function TabAjuste() {
                   onChange={(e) => setCantidad(e.target.value)}
                   className="text-center font-mono"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCantidad((v) => String((Number(v) || 0) - 1))}
-                >
+                <Button type="button" variant="outline" size="icon" onClick={() => setCantidad((v) => String((Number(v) || 0) - 1))}>
                   <PackageMinus className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
-            {/* Motivo */}
             <div className="space-y-1.5">
               <Label htmlFor="motivo">Motivo</Label>
               <Textarea
                 id="motivo"
-                placeholder="ej: Recepción de mercadería, rotura, corrección..."
+                placeholder="ej: Recepcion de mercaderia, rotura, correccion..."
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
                 rows={3}
               />
             </div>
 
-            {/* Preview */}
             {productoSeleccionado && cantidadNum !== 0 && !isNaN(cantidadNum) && (
               <div className="rounded-md bg-muted px-4 py-3 text-sm flex items-center justify-between">
                 <span className="text-muted-foreground">Stock resultante:</span>
                 <span className="font-semibold font-mono">
-                  {productoSeleccionado.stock} → {productoSeleccionado.stock + cantidadNum}
+                  {productoSeleccionado.stock} a {productoSeleccionado.stock + cantidadNum}
                 </span>
               </div>
             )}

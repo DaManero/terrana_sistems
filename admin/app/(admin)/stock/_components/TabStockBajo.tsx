@@ -29,18 +29,15 @@ export function TabStockBajo() {
   });
 
   const filtrados = busqueda
-    ? (productos ?? []).filter((p) =>
-        p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-      )
+    ? (productos ?? []).filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase()))
     : (productos ?? []);
 
   return (
     <div className="space-y-4">
-      {/* Controles */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground whitespace-nowrap">Umbral de stock:</span>
-          <Select value={umbral} onValueChange={(v) => setUmbral(v)}>
+          <Select value={umbral} onValueChange={setUmbral}>
             <SelectTrigger className="w-24">
               <SelectValue />
             </SelectTrigger>
@@ -59,23 +56,21 @@ export function TabStockBajo() {
         />
       </div>
 
-      {/* Contador */}
       {!isLoading && (
         <div className="flex items-center gap-2 text-sm">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
           <span>
-            <span className="font-semibold">{filtrados.length}</span> producto{filtrados.length !== 1 ? 's' : ''} con stock ≤ {umbral} u.
+            <span className="font-semibold">{filtrados.length}</span> producto{filtrados.length !== 1 ? 's' : ''} con stock menor o igual a {umbral} u.
           </span>
         </div>
       )}
 
-      {/* Tabla */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Producto</TableHead>
-              <TableHead>Categoría</TableHead>
+              <TableHead>Categoria</TableHead>
               <TableHead>Marca</TableHead>
               <TableHead className="text-right">Stock actual</TableHead>
             </TableRow>
@@ -92,15 +87,15 @@ export function TabStockBajo() {
             ) : filtrados.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
-                  ✅ Todo el stock está en nivel normal.
+                  Todo el stock esta en nivel normal.
                 </TableCell>
               </TableRow>
             ) : (
               filtrados.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.nombre}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{p.categoria?.nombre ?? '—'}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{p.marca?.nombre ?? '—'}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{p.categoria?.nombre ?? '-'}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{p.marca?.nombre ?? '-'}</TableCell>
                   <TableCell className="text-right">
                     <Badge variant={p.stock === 0 ? 'destructive' : 'outline'}>
                       {p.stock === 0 ? 'Sin stock' : `${p.stock} u.`}

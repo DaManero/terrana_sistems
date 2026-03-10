@@ -21,10 +21,10 @@ interface Movimiento {
 }
 
 const TIPO_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  entrada:       { label: 'Entrada',        variant: 'default' },
-  salida:        { label: 'Salida',          variant: 'destructive' },
-  ajuste_manual: { label: 'Ajuste manual',   variant: 'secondary' },
-  venta:         { label: 'Venta',           variant: 'outline' },
+  entrada:       { label: 'Entrada',       variant: 'default' },
+  salida:        { label: 'Salida',         variant: 'destructive' },
+  ajuste_manual: { label: 'Ajuste manual',  variant: 'secondary' },
+  venta:         { label: 'Venta',          variant: 'outline' },
 };
 
 export function TabHistorial() {
@@ -44,7 +44,6 @@ export function TabHistorial() {
   const movimientos = data?.data ?? [];
   const totalPaginas = data?.totalPaginas ?? 1;
 
-  // Filtro local por nombre de producto
   const filtrados = busquedaActiva
     ? movimientos.filter((m) =>
         m.producto.nombre.toLowerCase().includes(busquedaActiva.toLowerCase())
@@ -58,7 +57,6 @@ export function TabHistorial() {
 
   return (
     <div className="space-y-4">
-      {/* Buscador */}
       <div className="flex gap-2 max-w-sm">
         <Input
           placeholder="Filtrar por producto..."
@@ -71,7 +69,6 @@ export function TabHistorial() {
         </Button>
       </div>
 
-      {/* Tabla */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -118,10 +115,10 @@ export function TabHistorial() {
                       {m.cantidad > 0 ? `+${m.cantidad}` : m.cantidad}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                      {m.motivo ?? '—'}
+                      {m.motivo ?? '-'}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {m.usuario ? `${m.usuario.nombre} ${m.usuario.apellido}` : '—'}
+                      {m.usuario ? `${m.usuario.nombre} ${m.usuario.apellido}` : '-'}
                     </TableCell>
                   </TableRow>
                 );
@@ -131,13 +128,12 @@ export function TabHistorial() {
         </Table>
       </div>
 
-      {/* Paginación */}
       {totalPaginas > 1 && (
         <div className="flex items-center justify-end gap-2">
           <Button variant="outline" size="icon" disabled={pagina === 1} onClick={() => setPagina((p) => p - 1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm text-muted-foreground">Pág. {pagina} / {totalPaginas}</span>
+          <span className="text-sm text-muted-foreground">Pag. {pagina} / {totalPaginas}</span>
           <Button variant="outline" size="icon" disabled={pagina === totalPaginas} onClick={() => setPagina((p) => p + 1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
