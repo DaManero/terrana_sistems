@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import Image from 'next/image';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -58,11 +59,17 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30">
       <Card className="w-full max-w-sm shadow-lg">
-        <CardHeader className="text-center space-y-1">
-          <div className="mx-auto w-12 h-12 bg-foreground rounded-xl flex items-center justify-center mb-2">
-            <span className="text-background font-bold text-lg">T</span>
+        <CardHeader className="text-center space-y-0 pb-2">
+          <div className="mx-auto">
+            <Image
+              src="/Tarjeta Frente.png"
+              alt="Terrana"
+              width={180}
+              height={60}
+              className="object-contain mx-auto"
+              priority
+            />
           </div>
-          <CardTitle className="text-2xl">Terrana Admin</CardTitle>
           <CardDescription>Ingresá para acceder al panel</CardDescription>
         </CardHeader>
         <CardContent>

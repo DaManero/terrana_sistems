@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { clearSession, getUser } from '@/lib/auth';
@@ -47,11 +48,15 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-60 flex-col border-r bg-card">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center flex-shrink-0">
-          <span className="text-background font-bold text-sm">T</span>
-        </div>
-        <span className="font-semibold text-base tracking-tight">Terrana</span>
+      <div className="flex items-center justify-center px-4 py-6">
+        <Image
+          src="/Tarjeta Frente.png"
+          alt="Terrana"
+          width={180}
+          height={72}
+          className="object-contain"
+          priority
+        />
       </div>
 
       <Separator />

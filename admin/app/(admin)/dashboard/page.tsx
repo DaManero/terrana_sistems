@@ -50,12 +50,12 @@ export default function DashboardPage() {
 
   const { data: stockBajo, isLoading: loadingStock } = useQuery({
     queryKey: ['reportes', 'stock-bajo'],
-    queryFn: () => api.get('/reportes/stock/bajo?umbral=10').then((r) => r.data),
+    queryFn: () => api.get('/reportes/stock/bajo?umbral=10').then((r) => r.data.productos ?? r.data),
   });
 
   const { data: masVendidos, isLoading: loadingMasVendidos } = useQuery({
     queryKey: ['reportes', 'mas-vendidos'],
-    queryFn: () => api.get('/reportes/productos/mas-vendidos?limite=5').then((r) => r.data),
+    queryFn: () => api.get('/reportes/productos/mas-vendidos?limit=5').then((r) => r.data),
   });
 
   return (
