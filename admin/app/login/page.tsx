@@ -59,10 +59,13 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30">
       <Card className="w-full max-w-sm shadow-lg">
         <CardHeader className="text-center space-y-1">
-          <div className="mx-auto w-12 h-12 bg-foreground rounded-xl flex items-center justify-center mb-2">
-            <span className="text-background font-bold text-lg">T</span>
-          </div>
-          <CardTitle className="text-2xl">Terrana Admin</CardTitle>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/terrana.png"
+            alt="Terrana"
+            width={160}
+            className="mx-auto mb-2"
+          />
           <CardDescription>Ingresá para acceder al panel</CardDescription>
         </CardHeader>
         <CardContent>
