@@ -252,7 +252,7 @@ export async function listar(filtros: FiltrosVenta, usuarioId?: number, esAdmin 
     prisma.venta.findMany({
       where,
       include: {
-        cliente: { omit: { password: true } },
+        cliente: { select: { id: true, nombre: true, apellido: true, email: true, cel: true, rol_id: true, activo: true, aprobado: true, created_at: true, updated_at: true } },
         metodo_envio: true,
         items: { include: { producto: { select: { nombre: true, imagen_url: true } } } },
       },
@@ -271,7 +271,7 @@ export async function obtenerPorId(id: number) {
   const venta = await prisma.venta.findUnique({
     where: { id },
     include: {
-      cliente: { omit: { password: true } },
+      cliente: { select: { id: true, nombre: true, apellido: true, email: true, cel: true, rol_id: true, activo: true, aprobado: true, created_at: true, updated_at: true } },
       metodo_envio: true,
       direccion: true,
       codigo_descuento: true,
@@ -283,7 +283,7 @@ export async function obtenerPorId(id: number) {
         },
       },
       etiquetas_envio: {
-        include: { generador: { omit: { password: true } } },
+        include: { generador: { select: { id: true, nombre: true, apellido: true, email: true } } },
       },
     },
   });
