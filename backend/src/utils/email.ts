@@ -2,15 +2,35 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const nodemailer = require('nodemailer') as typeof import('nodemailer');
 
+const port = Number(process.env.SMTP_PORT ?? 587);
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT ?? 587),
-  secure: process.env.SMTP_PORT === '465',
+  port,
+  secure: port === 465,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  // Gmail requiere TLS explícito en puerto 587
+  tls: {
+    rejectUnauthorized: process.env.NODE_ENV === 'production',
+  },
 });
+
+// Verifica la conexión SMTP al arrancar — logguea advertencia si falla, no rompe el server
+export async function verificarConexionSMTP(): Promise<void> {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+    console.warn('[Email] SMTP no configurado — los emails no se enviarán.');
+    return;
+  }
+  try {
+    await transporter.verify();
+    console.log('[Email] Conexión SMTP verificada correctamente.');
+  } catch (err) {
+    console.error('[Email] Error al verificar conexión SMTP:', err);
+  }
+}
 
 interface EmailOptions {
   to: string;
@@ -82,6 +102,28 @@ export function templateResetPassword(params: {
       </p>
       <p style="color: #9c9485; font-size: 14px;">Este link vence en 1 hora.</p>
       <p style="color: #9c9485; font-size: 14px;">Si no solicitaste esto, ignorá este email.</p>
+      <p style="color: #4a4535;">El equipo de Terrana</p>
+    </div>
+  `;
+}
+
+export function templateInvitacion(params: {
+  link: string;
+  adminNombre: string;
+}): string {
+  return `
+    <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; color: #1c1a13;">
+      <h1 style="color: #594d0e;">Fuiste invitado a Terrana</h1>
+      <p><strong>${params.adminNombre}</strong> te invitó a crear una cuenta en la plataforma de Terrana.</p>
+      <p>Hacé clic en el botón para completar tu registro:</p>
+      <p>
+        <a href="${params.link}"
+           style="background: #594d0e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+          Crear mi cuenta
+        </a>
+      </p>
+      <p style="color: #9c9485; font-size: 14px;">Este link vence en 48 horas.</p>
+      <p style="color: #9c9485; font-size: 14px;">Si no esperabas este email, podés ignorarlo.</p>
       <p style="color: #4a4535;">El equipo de Terrana</p>
     </div>
   `;

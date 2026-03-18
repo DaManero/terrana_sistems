@@ -15,10 +15,15 @@ api.interceptors.request.use((config) => {
 });
 
 // Si el backend devuelve 401, limpia la sesión y redirige al login
+// (excepto si ya estamos en /login, para no interrumpir el manejo de errores del formulario)
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
+    if (
+      error.response?.status === 401 &&
+      typeof window !== 'undefined' &&
+      !window.location.pathname.startsWith('/login')
+    ) {
       localStorage.removeItem('terrana_admin_token');
       localStorage.removeItem('terrana_admin_user');
       window.location.href = '/login';

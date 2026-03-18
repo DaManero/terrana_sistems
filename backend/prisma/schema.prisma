@@ -56,6 +56,7 @@ model User {
   etiquetas_generadas   EtiquetaEnvio[]        @relation("GeneradorEtiqueta")
   etiquetas_impresas    EtiquetaEnvio[]        @relation("ImpresorEtiqueta")
   password_tokens       PasswordResetToken[]
+  invitaciones_enviadas InvitationToken[]      @relation("AdminInvitaciones")
 
   @@map("users")
 }
@@ -441,4 +442,22 @@ model PasswordResetToken {
   usuario User @relation(fields: [usuario_id], references: [id])
 
   @@map("password_reset_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  INVITATION TOKENS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model InvitationToken {
+  id             Int      @id @default(autoincrement())
+  email          String   @db.VarChar(150)
+  token          String   @unique @db.VarChar(255)
+  invitado_por   Int
+  usado          Boolean  @default(false)
+  expira_at      DateTime
+  created_at     DateTime @default(now())
+
+  admin          User     @relation("AdminInvitaciones", fields: [invitado_por], references: [id])
+
+  @@map("invitation_tokens")
 }

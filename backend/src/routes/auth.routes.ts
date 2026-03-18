@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import * as authController from '../controllers/auth.controller';
 import { autenticar } from '../middlewares/auth.middleware';
+import { requiereRol } from '../middlewares/roles.middleware';
 
 const router = Router();
+
+// POST /api/v1/auth/invite — solo Admin
+router.post('/invite', autenticar, requiereRol('Admin'), authController.invitar);
 
 // POST /api/v1/auth/register
 router.post('/register', authController.registrar);
