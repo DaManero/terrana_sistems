@@ -11,9 +11,48 @@ import {
   templateSetPassword,
   templateResetPassword,
   templatePasswordCambiada,
+  templateInvitacion,
 } from '../utils/email';
 
-// ─── Registro ─────────────────────────────────────────────────────────────────
+// ─── Invitar usuario (solo Admin) ─────────────────────────────────────────────
+
+export async function invitarUsuario(email: string, adminId: number): Promise<void> {
+  const existente = await prisma.user.findUnique({ where: { email } });
+  if (existente) throw new AppError('Ya existe una cuenta con ese email', 409);
+
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin) throw new AppError('Admin no encontrado', 404);
+
+  // Invalidar invitaciones previas no usadas para ese email
+  await prisma.invitationToken.updateMany({
+    where: { email, usado: false },
+    data: { usado: true },
+  });
+
+  const token = generarTokenAleatorio();
+
+  await prisma.invitationToken.create({
+    data: {
+      email,
+      token,
+      invitado_por: adminId,
+      expira_at: calcularExpiracion(48),
+    },
+  });
+
+  const link = `${process.env.ECOMMERCE_URL}/auth/register?token=${token}`;
+
+  await enviarEmail({
+    to: email,
+    subject: 'Invitación para crear tu cuenta en Terrana',
+    html: templateInvitacion({
+      link,
+      adminNombre: `${admin.nombre} ${admin.apellido}`,
+    }),
+  });
+}
+
+// ─── Registro (requiere token de invitación) ──────────────────────────────────
 
 interface DatosRegistro {
   nombre: string;
@@ -21,9 +60,24 @@ interface DatosRegistro {
   email: string;
   password: string;
   cel?: string;
+  token: string;
 }
 
 export async function registrar(datos: DatosRegistro) {
+  // Validar token de invitación
+  const invitacion = await prisma.invitationToken.findUnique({
+    where: { token: datos.token },
+  });
+
+  if (
+    !invitacion ||
+    invitacion.usado ||
+    invitacion.expira_at < new Date() ||
+    invitacion.email.toLowerCase() !== datos.email.toLowerCase()
+  ) {
+    throw new AppError('Invitación inválida, expirada o el email no coincide', 400);
+  }
+
   const existente = await prisma.user.findUnique({
     where: { email: datos.email },
   });
@@ -57,6 +111,12 @@ export async function registrar(datos: DatosRegistro) {
     include: { rol: true },
   });
 
+  // Marcar invitación como usada
+  await prisma.invitationToken.update({
+    where: { id: invitacion.id },
+    data: { usado: true },
+  });
+
   const token = generarJWT({
     id: usuario.id,
     email: usuario.email,
@@ -84,8 +144,12 @@ export async function login(email: string, password: string) {
     include: { rol: true },
   });
 
-  if (!usuario || !usuario.activo) {
+  if (!usuario) {
     throw new AppError('Credenciales incorrectas', 401);
+  }
+
+  if (!usuario.activo) {
+    throw new AppError('Usuario desactivado. Contactese con el administrador.', 403);
   }
 
   if (!usuario.password) {

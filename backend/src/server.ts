@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import app from './app';
 import { prisma } from './prisma/client';
+import { verificarConexionSMTP } from './utils/email';
 
 const PORT = process.env.PORT ?? 4000;
 
@@ -13,6 +14,9 @@ async function main() {
     console.error('❌ Error al conectar con PostgreSQL:', error);
     process.exit(1);
   }
+
+  // Verificar conexión SMTP (no bloquea el arranque si falla)
+  await verificarConexionSMTP();
 
   app.listen(PORT, () => {
     console.log(`🚀 Backend escuchando en http://localhost:${PORT}`);

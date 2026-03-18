@@ -46,7 +46,16 @@ router.patch('/:id', autenticar, esOwnerOAdmin, usersController.actualizar);
 // PATCH /api/v1/users/:id/password
 router.patch('/:id/password', autenticar, esOwnerOAdmin, usersController.cambiarPassword);
 
+// PATCH /api/v1/users/:id/aprobacion — solo Admin
+router.patch('/:id/aprobacion', autenticar, requiereRol('Admin'), usersController.cambiarAprobacion);
+
+// PATCH /api/v1/users/:id/rol — solo Admin
+router.patch('/:id/rol', autenticar, requiereRol('Admin'), usersController.cambiarRol);
+
 // PATCH /api/v1/users/:id/estado — solo Admin
 router.patch('/:id/estado', autenticar, requiereRol('Admin'), usersController.cambiarEstado);
+
+// DELETE /api/v1/users/:id — solo Admin
+router.delete('/:id', autenticar, requiereRol('Admin'), usersController.eliminar);
 
 export default router;

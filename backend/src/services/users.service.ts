@@ -103,6 +103,42 @@ export async function cambiarPassword(id: number, passwordActual: string, passwo
   await prisma.user.update({ where: { id }, data: { password: hash } });
 }
 
+// ─── Cambiar rol (solo Admin) ───────────────────────────────────────────────
+
+export async function cambiarRol(id: number, rolId: number) {
+  const rol = await prisma.rol.findUnique({ where: { id: rolId } });
+  if (!rol) throw new AppError('Rol no encontrado', 404);
+
+  const usuario = await prisma.user.update({
+    where: { id },
+    data: { rol_id: rolId },
+    include: { rol: true },
+  });
+
+  return sanitizar(usuario);
+}
+// ─── Eliminar usuario (solo Admin) ───────────────────────────────────────────
+
+export async function eliminar(id: number, adminId: number) {
+  if (id === adminId) throw new AppError('No podés eliminar tu propia cuenta', 400);
+
+  const usuario = await prisma.user.findUnique({ where: { id } });
+  if (!usuario) throw new AppError('Usuario no encontrado', 404);
+
+  await prisma.user.delete({ where: { id } });
+}
+// ─── Aprobar / desaprobar usuario (solo Admin) ──────────────────────────────────
+
+export async function cambiarAprobacion(id: number, aprobado: boolean) {
+  const usuario = await prisma.user.update({
+    where: { id },
+    data: { aprobado },
+    include: { rol: true },
+  });
+
+  return sanitizar(usuario);
+}
+
 // ─── Activar / desactivar cuenta ─────────────────────────────────────────────
 
 export async function cambiarEstado(id: number, activo: boolean) {

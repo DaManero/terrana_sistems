@@ -18,7 +18,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Search, Eye, PowerOff, Power } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Eye, PowerOff, Power, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Rol {
@@ -75,6 +75,8 @@ export function TabUsuarios() {
   const [busquedaActiva, setBusquedaActiva] = useState('');
   const [rolFiltro, setRolFiltro] = useState('todos');
   const [detalle, setDetalle] = useState<Usuario | null>(null);
+  const [rolEditado, setRolEditado] = useState<string>('');
+  const [usuarioAEliminar, setUsuarioAEliminar] = useState<Usuario | null>(null);
 
   // ─── Roles para el selector ──────────────────────────────────────────────
   const { data: roles = [] } = useQuery<Rol[]>({
@@ -108,6 +110,44 @@ export function TabUsuarios() {
     onError: () => toast.error('Error al cambiar el estado'),
   });
 
+  // ─── Cambiar rol (solo Admin) ─────────────────────────────────────────────
+  const cambiarRol = useMutation({
+    mutationFn: ({ id, rolId }: { id: number; rolId: number }) =>
+      api.patch(`/users/${id}/rol`, { rolId }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['usuarios'] });
+      setDetalle((prev) => prev ? { ...prev, rol: res.data.rol } : prev);
+      toast.success('Rol actualizado correctamente');
+    },
+    onError: () => toast.error('Error al cambiar el rol'),
+  });
+  // ─── Cambiar aprobación (solo Admin) ──────────────────────────────────────
+  const toggleAprobacion = useMutation({
+    mutationFn: ({ id, aprobado }: { id: number; aprobado: boolean }) =>
+      api.patch(`/users/${id}/aprobacion`, { aprobado }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['usuarios'] });
+      setDetalle((prev) => prev ? { ...prev, aprobado: res.data.aprobado } : prev);
+      toast.success(res.data.aprobado ? 'Usuario aprobado' : 'Aprobación revocada');
+    },
+    onError: () => toast.error('Error al cambiar la aprobación'),
+  });
+
+  // ─── Eliminar usuario (solo Admin) ──────────────────────────────────────
+  const eliminar = useMutation({
+    mutationFn: (id: number) => api.delete(`/users/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['usuarios'] });
+      toast.success('Usuario eliminado');
+      setUsuarioAEliminar(null);
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { mensaje?: string } } })?.response?.data?.mensaje ??
+        'Error al eliminar el usuario';
+      toast.error(msg);
+    },
+  });
   const handleBuscar = () => {
     setBusquedaActiva(busqueda);
     setPagina(1);
@@ -198,10 +238,25 @@ export function TabUsuarios() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">
-                    {u.aprobado ? (
-                      <Badge variant="outline" className="text-green-600 border-green-300">Sí</Badge>
+                    {esAdmin ? (
+                      <button
+                        onClick={() => toggleAprobacion.mutate({ id: u.id, aprobado: !u.aprobado })}
+                        disabled={toggleAprobacion.isPending}
+                        title={u.aprobado ? 'Revocar aprobación' : 'Aprobar usuario'}
+                        className="cursor-pointer"
+                      >
+                        {u.aprobado ? (
+                          <Badge variant="outline" className="text-green-600 border-green-300 hover:bg-green-50">Sí</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground hover:bg-muted">No</Badge>
+                        )}
+                      </button>
                     ) : (
-                      <Badge variant="outline" className="text-muted-foreground">No</Badge>
+                      u.aprobado ? (
+                        <Badge variant="outline" className="text-green-600 border-green-300">Sí</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">No</Badge>
+                      )
                     )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -213,7 +268,7 @@ export function TabUsuarios() {
                         variant="ghost"
                         size="icon"
                         title="Ver detalle"
-                        onClick={() => setDetalle(u)}
+                        onClick={() => { setDetalle(u); setRolEditado(''); }}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -229,6 +284,16 @@ export function TabUsuarios() {
                             ? <PowerOff className="h-4 w-4 text-destructive" />
                             : <Power className="h-4 w-4 text-green-600" />
                           }
+                        </Button>
+                      )}
+                      {esAdmin && currentUser?.id !== u.id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Eliminar usuario"
+                          onClick={() => setUsuarioAEliminar(u)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       )}
                     </div>
@@ -263,7 +328,6 @@ export function TabUsuarios() {
         </div>
       )}
 
-      {/* Dialog detalle */}
       <Dialog open={!!detalle} onOpenChange={(open) => !open && setDetalle(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -286,7 +350,38 @@ export function TabUsuarios() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Rol</Label>
-                  <p className="font-medium mt-0.5">{detalle.rol.nombre}</p>
+                  {esAdmin ? (
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Select
+                        value={String(rolEditado || detalle.rol.id)}
+                        onValueChange={(v) => setRolEditado(v)}
+                      >
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roles.map((r) => (
+                            <SelectItem key={r.id} value={String(r.id)}>{r.nombre}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={
+                          cambiarRol.isPending ||
+                          (!rolEditado || Number(rolEditado) === detalle.rol.id)
+                        }
+                        onClick={() =>
+                          cambiarRol.mutate({ id: detalle.id, rolId: Number(rolEditado) })
+                        }
+                      >
+                        {cambiarRol.isPending ? 'Guardando...' : 'Guardar'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="font-medium mt-0.5">{detalle.rol.nombre}</p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Estado</Label>
@@ -298,10 +393,23 @@ export function TabUsuarios() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Cuenta aprobada</Label>
-                  <div className="mt-0.5">
-                    <Badge variant={detalle.aprobado ? 'outline' : 'secondary'}>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <Badge variant={detalle.aprobado ? 'outline' : 'secondary'}
+                      className={detalle.aprobado ? 'text-green-600 border-green-300' : ''}>
                       {detalle.aprobado ? 'Sí' : 'No'}
                     </Badge>
+                    {esAdmin && (
+                      <Button
+                        size="sm"
+                        variant={detalle.aprobado ? 'outline' : 'default'}
+                        disabled={toggleAprobacion.isPending}
+                        onClick={() => toggleAprobacion.mutate({ id: detalle.id, aprobado: !detalle.aprobado })}
+                      >
+                        {toggleAprobacion.isPending
+                          ? 'Guardando...'
+                          : detalle.aprobado ? 'Revocar' : 'Aprobar'}
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -340,6 +448,36 @@ export function TabUsuarios() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetalle(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog confirmación eliminar */}
+      <Dialog open={!!usuarioAEliminar} onOpenChange={(open) => !open && setUsuarioAEliminar(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Eliminar usuario</DialogTitle>
+          </DialogHeader>
+          {usuarioAEliminar && (
+            <p className="text-sm text-muted-foreground py-2">
+              ¿Estás seguro que querés eliminar a{' '}
+              <strong className="text-foreground">
+                {usuarioAEliminar.nombre} {usuarioAEliminar.apellido}
+              </strong>?
+              Esta acción no se puede deshacer.
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUsuarioAEliminar(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={eliminar.isPending}
+              onClick={() => usuarioAEliminar && eliminar.mutate(usuarioAEliminar.id)}
+            >
+              {eliminar.isPending ? 'Eliminando...' : 'Eliminar'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

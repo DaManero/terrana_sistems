@@ -1,6 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import * as authService from '../services/auth.service';
 
+export async function invitar(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    await authService.invitarUsuario(req.body.email, req.usuario!.id);
+    res.json({ mensaje: 'Invitación enviada correctamente.' });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function registrar(
   req: Request,
   res: Response,

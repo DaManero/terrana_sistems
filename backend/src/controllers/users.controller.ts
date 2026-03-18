@@ -52,6 +52,31 @@ export async function cambiarPassword(req: Request, res: Response, next: NextFun
     res.json({ mensaje: 'Contraseña actualizada' });
   } catch (error) { next(error); }
 }
+// ─── Eliminar usuario (Admin) ────────────────────────────────────────────────
+
+export async function eliminar(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await usersService.eliminar(Number(req.params.id), req.usuario!.id);
+    res.json({ mensaje: 'Usuario eliminado correctamente.' });
+  } catch (error) { next(error); }
+}
+// ─── Cambiar rol (Admin) ────────────────────────────────────────────────────
+
+export async function cambiarRol(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const usuario = await usersService.cambiarRol(Number(req.params.id), Number(req.body.rolId));
+    res.json(usuario);
+  } catch (error) { next(error); }
+}
+
+// ─── Aprobar / desaprobar (Admin) ─────────────────────────────────────────────
+
+export async function cambiarAprobacion(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const usuario = await usersService.cambiarAprobacion(Number(req.params.id), req.body.aprobado);
+    res.json(usuario);
+  } catch (error) { next(error); }
+}
 
 // ─── Activar / desactivar cuenta (Admin) ─────────────────────────────────────
 

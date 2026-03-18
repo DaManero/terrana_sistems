@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { getUser } from '@/lib/auth';
 import { TabUsuarios } from './_components/TabUsuarios';
 import { TabSolicitudesMayorista } from './_components/TabSolicitudesMayorista';
+import { ModalInvitar } from './_components/ModalInvitar';
 
 const TABS = [
   { id: 'usuarios',   label: 'Usuarios' },
@@ -14,14 +16,19 @@ type TabId = (typeof TABS)[number]['id'];
 
 export default function UsuariosPage() {
   const [activeTab, setActiveTab] = useState<TabId>('usuarios');
+  const currentUser = getUser();
+  const esAdmin = currentUser?.rol === 'Admin';
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Usuarios</h1>
-        <p className="text-sm text-muted-foreground">
-          Gestión de cuentas y solicitudes de acceso mayorista
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Usuarios</h1>
+          <p className="text-sm text-muted-foreground">
+            Gestión de cuentas y solicitudes de acceso mayorista
+          </p>
+        </div>
+        {esAdmin && <ModalInvitar />}
       </div>
 
       <div className="border-b border-border">
