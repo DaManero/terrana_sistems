@@ -1,10 +1,16 @@
+import { Resend } from 'resend';
 // nodemailer v8 es ESM-only; usamos require para compatibilidad con CommonJS
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const nodemailer = require('nodemailer') as typeof import('nodemailer');
 
-const port = Number(process.env.SMTP_PORT ?? 587);
+const isProduction = process.env.NODE_ENV === 'production';
 
-const transporter = nodemailer.createTransport({
+// ─── Resend (producción) ──────────────────────────────────────────────────────
+const resend = isProduction ? new Resend(process.env.RESEND_API_KEY) : null;
+
+// ─── Nodemailer (desarrollo) ──────────────────────────────────────────────────
+const port = Number(process.env.SMTP_PORT ?? 587);
+const transporter = !isProduction ? nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port,
   secure: port === 465,
@@ -12,20 +18,25 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-  // Gmail requiere TLS explícito en puerto 587
-  tls: {
-    rejectUnauthorized: process.env.NODE_ENV === 'production',
-  },
-});
+  tls: { rejectUnauthorized: false },
+}) : null;
 
-// Verifica la conexión SMTP al arrancar — logguea advertencia si falla, no rompe el server
+// Verifica la conexión al arrancar — logguea advertencia si falla, no rompe el server
 export async function verificarConexionSMTP(): Promise<void> {
+  if (isProduction) {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[Email] RESEND_API_KEY no configurada — los emails no se enviarán.');
+    } else {
+      console.log('[Email] Resend configurado correctamente.');
+    }
+    return;
+  }
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
     console.warn('[Email] SMTP no configurado — los emails no se enviarán.');
     return;
   }
   try {
-    await transporter.verify();
+    await transporter!.verify();
     console.log('[Email] Conexión SMTP verificada correctamente.');
   } catch (err) {
     console.error('[Email] Error al verificar conexión SMTP:', err);
@@ -39,10 +50,14 @@ interface EmailOptions {
 }
 
 export async function enviarEmail(options: EmailOptions): Promise<void> {
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM ?? 'no-reply@terrana.com',
-    ...options,
-  });
+  const from = process.env.SMTP_FROM ?? 'Terrana <no-reply@terranagourmet.com.ar>';
+  if (isProduction && resend) {
+    await resend.emails.send({ from, ...options });
+  } else if (transporter) {
+    await transporter.sendMail({ from, ...options });
+  } else {
+    console.warn('[Email] Sin proveedor configurado — email no enviado:', options.subject);
+  }
 }
 
 // ─── Templates ────────────────────────────────────────────────────────────────
