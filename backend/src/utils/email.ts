@@ -6,7 +6,7 @@ const nodemailer = require('nodemailer') as typeof import('nodemailer');
 const isProduction = process.env.NODE_ENV === 'production';
 
 // ─── Resend (producción) ──────────────────────────────────────────────────────
-const resend = isProduction ? new Resend(process.env.RESEND_API_KEY) : null;
+const resend = (isProduction && process.env.RESEND_API_KEY) ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // ─── Nodemailer (desarrollo) ──────────────────────────────────────────────────
 const port = Number(process.env.SMTP_PORT ?? 587);
