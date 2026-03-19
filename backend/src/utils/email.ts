@@ -16,8 +16,6 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: process.env.NODE_ENV === 'production',
   },
-  // Forzar IPv4 — Railway no soporta IPv6 para conexiones SMTP salientes
-  family: 4,
 });
 
 // Verifica la conexión SMTP al arrancar — logguea advertencia si falla, no rompe el server
