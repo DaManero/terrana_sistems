@@ -59,7 +59,7 @@ export const autenticar = async (
 
     req.usuario = {
       id: usuario.id,
-      email: usuario.email,
+      email: usuario.email ?? '',
       rol: usuario.rol.nombre,
       aprobado: usuario.aprobado,
     };
@@ -102,7 +102,7 @@ export const autenticarOpcional = async (
     if (usuario && usuario.activo) {
       req.usuario = {
         id: usuario.id,
-        email: usuario.email,
+        email: usuario.email ?? '',
         rol: usuario.rol.nombre,
         aprobado: usuario.aprobado,
       };

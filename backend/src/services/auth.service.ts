@@ -119,7 +119,7 @@ export async function registrar(datos: DatosRegistro) {
 
   const token = generarJWT({
     id: usuario.id,
-    email: usuario.email,
+    email: usuario.email ?? '',
     rol: usuario.rol.nombre,
   });
 
@@ -167,7 +167,7 @@ export async function login(email: string, password: string) {
 
   const token = generarJWT({
     id: usuario.id,
-    email: usuario.email,
+    email: usuario.email ?? '',
     rol: usuario.rol.nombre,
   });
 
@@ -206,7 +206,7 @@ export async function solicitarRecupero(email: string): Promise<void> {
   const link = `${process.env.ECOMMERCE_URL}/auth/reset-password?token=${token}`;
 
   await enviarEmail({
-    to: usuario.email,
+    to: usuario.email ?? '',
     subject: 'Recuperar contraseña — Terrana',
     html: templateResetPassword({
       nombre: usuario.nombre,
@@ -249,7 +249,7 @@ export async function resetearPassword(
   ]);
 
   await enviarEmail({
-    to: registro.usuario.email,
+    to: registro.usuario.email ?? '',
     subject: 'Tu contraseña fue cambiada — Terrana',
     html: templatePasswordCambiada({ nombre: registro.usuario.nombre }),
   });
@@ -290,7 +290,7 @@ export async function establecerPassword(
 
   const jwt = generarJWT({
     id: registro.usuario.id,
-    email: registro.usuario.email,
+    email: registro.usuario.email ?? '',
     rol: registro.usuario.rol.nombre,
   });
 
@@ -365,7 +365,7 @@ export async function crearCuentaDesdeGuest(datos: DatosGuestACuenta) {
   const link = `${process.env.ECOMMERCE_URL}/auth/set-password?token=${token}`;
 
   await enviarEmail({
-    to: usuario.email,
+    to: usuario.email ?? '',
     subject: 'Activá tu cuenta en Terrana',
     html: templateSetPassword({ nombre: usuario.nombre, link }),
   });
