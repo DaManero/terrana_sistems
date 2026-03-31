@@ -33,8 +33,7 @@ Thumbs.db
 *.swo
 
 # Prisma
-backend/prisma/migrations/
-!backend/prisma/migrations/.gitkeep
+# (migrations tracked in git for Railway deploy)
 
 # Testing
 coverage/
