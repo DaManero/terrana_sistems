@@ -6,6 +6,7 @@ import { getUser } from '@/lib/auth';
 import { TabUsuarios } from './_components/TabUsuarios';
 import { TabSolicitudesMayorista } from './_components/TabSolicitudesMayorista';
 import { ModalInvitar } from './_components/ModalInvitar';
+import { DialogNuevoCliente } from './_components/DialogNuevoCliente';
 
 const TABS = [
   { id: 'usuarios',   label: 'Usuarios' },
@@ -28,7 +29,12 @@ export default function UsuariosPage() {
             Gestión de cuentas y solicitudes de acceso mayorista
           </p>
         </div>
-        {esAdmin && <ModalInvitar />}
+        {esAdmin && (
+          <div className="flex items-center gap-2">
+            <DialogNuevoCliente />
+            <ModalInvitar />
+          </div>
+        )}
       </div>
 
       <div className="border-b border-border">

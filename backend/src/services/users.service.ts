@@ -7,6 +7,7 @@ import { AppError } from '../middlewares/error.middleware';
 export interface FiltrosUsuarios {
   busqueda?: string;
   rolId?: number;
+  tipoCliente?: 'mayorista' | 'minorista';
   pagina?: number;
   porPagina?: number;
 }
@@ -29,16 +30,30 @@ export async function listar(filtros: FiltrosUsuarios) {
   const pagina = filtros.pagina ?? 1;
   const porPagina = filtros.porPagina ?? 20;
 
-  const where = {
-    ...(filtros.busqueda && {
+  // Construimos con AND para evitar que múltiples OR en el mismo nivel se sobreescriban
+  const condiciones: object[] = [];
+
+  if (filtros.busqueda) {
+    condiciones.push({
       OR: [
         { nombre: { contains: filtros.busqueda, mode: 'insensitive' as const } },
         { apellido: { contains: filtros.busqueda, mode: 'insensitive' as const } },
         { email: { contains: filtros.busqueda, mode: 'insensitive' as const } },
       ],
-    }),
-    ...(filtros.rolId && { rol_id: filtros.rolId }),
-  };
+    });
+  }
+
+  if (filtros.rolId) {
+    condiciones.push({ rol_id: filtros.rolId });
+  }
+
+  if (filtros.tipoCliente === 'mayorista') {
+    condiciones.push({ rol: { nombre: 'Cliente Mayorista' } });
+  } else if (filtros.tipoCliente === 'minorista') {
+    condiciones.push({ rol: { nombre: 'Cliente Minorista' } });
+  }
+
+  const where = condiciones.length > 0 ? { AND: condiciones } : {};
 
   const [total, usuarios] = await Promise.all([
     prisma.user.count({ where }),

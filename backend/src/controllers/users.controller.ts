@@ -8,6 +8,7 @@ export async function listar(req: Request, res: Response, next: NextFunction): P
     const resultado = await usersService.listar({
       busqueda: req.query.busqueda as string | undefined,
       rolId: req.query.rolId ? Number(req.query.rolId) : undefined,
+      tipoCliente: req.query.tipoCliente as 'mayorista' | 'minorista' | undefined,
       pagina: req.query.pagina ? Number(req.query.pagina) : undefined,
       porPagina: req.query.porPagina ? Number(req.query.porPagina) : undefined,
     });
