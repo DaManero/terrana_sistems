@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Eye, ImageOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Eye, ImageOff, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 
@@ -69,9 +69,22 @@ const EMPTY_FORM: FormData = {
   stock: '0', imagen_url: '',
 };
 
+function convertirUrlImagen(url?: string): string {
+  if (!url) return '';
+  // Convierte enlace de compartir de Google Drive al formato de thumbnail embebible
+  // https://drive.google.com/file/d/FILE_ID/view?... → https://drive.google.com/thumbnail?id=FILE_ID&sz=w1200
+  const match = url.match(/drive\.google\.com\/file\/d\/([^/?]+)/);
+  if (match) return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1200`;
+  return url;
+}
+
 function ImagePreview({ src, alt, className }: { src?: string; alt?: string; className?: string }) {
   const [error, setError] = useState(false);
-  if (!src || error) {
+  const srcConvertido = convertirUrlImagen(src);
+
+  useEffect(() => { setError(false); }, [srcConvertido]);
+
+  if (!srcConvertido || error) {
     return (
       <div className={`flex flex-col items-center justify-center bg-muted rounded-md text-muted-foreground gap-1 ${className}`}>
         <ImageOff className="h-8 w-8 opacity-40" />
@@ -82,7 +95,7 @@ function ImagePreview({ src, alt, className }: { src?: string; alt?: string; cla
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={src}
+      src={srcConvertido}
       alt={alt ?? 'imagen producto'}
       className={`object-cover rounded-md ${className}`}
       onError={() => setError(true)}
@@ -99,10 +112,28 @@ export function TabProductos() {
   const [editando, setEditando] = useState<Producto | null>(null);
   const [detalleOpen, setDetalleOpen] = useState(false);
   const [productoDetalle, setProductoDetalle] = useState<Producto | null>(null);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const fileInputRef = useState<HTMLInputElement | null>(null);
   const { register, handleSubmit, reset, setValue, watch } = useForm<FormData>({ defaultValues: EMPTY_FORM });
 
   const categoriaId = watch('categoria_id');
   const imagenUrl = watch('imagen_url');
+
+  async function subirImagen(file: File) {
+    setSubiendoImagen(true);
+    try {
+      const formData = new FormData();
+      formData.append('imagen', file);
+      const res = await api.post('/uploads/imagen', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setValue('imagen_url', res.data.url, { shouldDirty: true });
+    } catch {
+      toast.error('Error al subir la imagen');
+    } finally {
+      setSubiendoImagen(false);
+    }
+  }
 
   const { data: categorias = [] } = useQuery({ queryKey: ['categorias'], queryFn: () => api.get('/categorias').then(r => r.data) });
   const { data: subcategorias = [] } = useQuery({
@@ -225,6 +256,7 @@ export function TabProductos() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12"></TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Marca</TableHead>
@@ -238,13 +270,16 @@ export function TabProductos() {
           <TableBody>
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <TableRow key={i}>{Array.from({ length: 8 }).map((_, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
+                <TableRow key={i}>{Array.from({ length: 9 }).map((_, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
               ))
             ) : productos.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-10">No se encontraron productos</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">No se encontraron productos</TableCell></TableRow>
             ) : (
               productos.map((p) => (
                 <TableRow key={p.id} className={!p.activo ? 'opacity-50' : ''}>
+                  <TableCell className="w-12 p-1">
+                    <ImagePreview src={p.imagen_url} alt={p.nombre} className="w-10 h-10" />
+                  </TableCell>
                   <TableCell className="font-medium max-w-45 truncate">{p.nombre}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{p.categoria?.nombre ?? '—'}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{p.marca?.nombre ?? '—'}</TableCell>
@@ -307,8 +342,33 @@ export function TabProductos() {
               <div className="row-span-3 space-y-1.5">
                 <Label>Imagen</Label>
                 <ImagePreview src={imagenUrl} alt="preview" className="w-full h-36 border" />
-                <Input {...register('imagen_url')} placeholder="https://..." className="mt-1" />
-                <p className="text-xs text-muted-foreground">Pegá la URL para previsualizar</p>
+                <div className="flex gap-1 mt-1">
+                  <Input {...register('imagen_url')} placeholder="https://..." className="flex-1" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={subiendoImagen}
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/jpeg,image/png,image/webp,image/gif';
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) subirImagen(file);
+                      };
+                      input.click();
+                    }}
+                    title="Subir imagen"
+                  >
+                    {subiendoImagen ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Pegá una URL o subí un archivo (jpg, png, webp)</p>
               </div>
 
               {/* Fila 2: Descripción (2 cols) */}

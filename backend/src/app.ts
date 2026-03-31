@@ -2,11 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
 
 import { errorHandler } from './middlewares/error.middleware';
 
 // Rutas
 import authRoutes from './routes/auth.routes';
+import uploadsRoutes from './routes/uploads.routes';
 import productosRoutes from './routes/productos.routes';
 import categoriasRoutes from './routes/categorias.routes';
 import subcategoriasRoutes from './routes/subcategorias.routes';
@@ -47,6 +49,13 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+// ─── Archivos estáticos (imágenes subidas) ───────────────────────────────────
+// crossOriginResourcePolicy: cross-origin permite que admin/ecommerce carguen imágenes
+app.use('/uploads', (_req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(process.cwd(), 'uploads')));
+
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -73,6 +82,7 @@ app.use(`${V1}/metodos-envio`, metodosEnvioRoutes);
 app.use(`${V1}/codigos-descuento`, codigosDescuentoRoutes);
 app.use(`${V1}/reportes`, reportesRoutes);
 app.use(`${V1}/webhooks`, webhooksRoutes);
+app.use(`${V1}/uploads`, uploadsRoutes);
 
 // ─── Error handler global ─────────────────────────────────────────────────────
 app.use(errorHandler);
