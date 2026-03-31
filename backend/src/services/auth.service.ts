@@ -17,7 +17,7 @@ import {
 // ─── Invitar usuario (solo Admin) ─────────────────────────────────────────────
 
 export async function invitarUsuario(email: string, adminId: number): Promise<void> {
-  const existente = await prisma.user.findUnique({ where: { email } });
+  const existente = await prisma.user.findFirst({ where: { email } });
   if (existente) throw new AppError('Ya existe una cuenta con ese email', 409);
 
   const admin = await prisma.user.findUnique({ where: { id: adminId } });
@@ -78,7 +78,7 @@ export async function registrar(datos: DatosRegistro) {
     throw new AppError('Invitación inválida, expirada o el email no coincide', 400);
   }
 
-  const existente = await prisma.user.findUnique({
+  const existente = await prisma.user.findFirst({
     where: { email: datos.email },
   });
 
@@ -139,7 +139,7 @@ export async function registrar(datos: DatosRegistro) {
 // ─── Login ────────────────────────────────────────────────────────────────────
 
 export async function login(email: string, password: string) {
-  const usuario = await prisma.user.findUnique({
+  const usuario = await prisma.user.findFirst({
     where: { email },
     include: { rol: true },
   });
@@ -187,7 +187,7 @@ export async function login(email: string, password: string) {
 // ─── Solicitar recupero de contraseña ─────────────────────────────────────────
 
 export async function solicitarRecupero(email: string): Promise<void> {
-  const usuario = await prisma.user.findUnique({ where: { email } });
+  const usuario = await prisma.user.findFirst({ where: { email } });
 
   // Siempre responder igual para no revelar qué emails están registrados
   if (!usuario || !usuario.activo) return;
@@ -316,7 +316,7 @@ interface DatosGuestACuenta {
 }
 
 export async function crearCuentaDesdeGuest(datos: DatosGuestACuenta) {
-  const existente = await prisma.user.findUnique({
+  const existente = await prisma.user.findFirst({
     where: { email: datos.email },
   });
 

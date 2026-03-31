@@ -58,7 +58,7 @@ router.post('/', autenticar, requiereRol('Admin'), async (req, res, next) => {
 
     // Verificar duplicado de email solo si se proveyó
     if (emailNorm) {
-      const existente = await prisma.user.findUnique({ where: { email: emailNorm } });
+      const existente = await prisma.user.findFirst({ where: { email: emailNorm } });
       if (existente) throw new AppError('Ya existe una cuenta con ese email', 409);
     }
 
