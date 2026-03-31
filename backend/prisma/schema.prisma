@@ -36,14 +36,15 @@ model User {
   id         Int      @id @default(autoincrement())
   nombre     String   @db.VarChar(100)
   apellido   String   @db.VarChar(100)
-  email      String   @unique @db.VarChar(150)
+  email      String?  @unique @db.VarChar(150)
   password   String?  @db.VarChar(255)
   cel        String?  @db.VarChar(30)
   rol_id     Int
-  activo     Boolean  @default(true)
-  aprobado   Boolean  @default(false)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  activo        Boolean  @default(true)
+  aprobado      Boolean  @default(false)
+  observaciones String?  @db.Text
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
   rol                   Rol                    @relation(fields: [rol_id], references: [id])
   direcciones           Direccion[]
