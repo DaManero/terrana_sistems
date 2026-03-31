@@ -122,7 +122,7 @@ router.post('/', autenticar, requiereRol('Admin'), async (req, res, next) => {
     if (debeEnviarActivacion) {
       const u = usuario as unknown as { _activacionLink: string };
       await enviarEmail({
-        to: usuario.email,
+        to: usuario.email ?? '',
         subject: 'Activá tu cuenta en Terrana',
         html: templateSetPassword({ nombre: usuario.nombre, link: u._activacionLink }),
       }).catch(() => {/* no bloquear si falla el email */});
