@@ -117,12 +117,11 @@ export interface VentaItem {
 export interface DireccionVenta {
   id: number;
   calle?: string;
-  numero?: string;
-  piso?: string;
-  departamento?: string;
-  ciudad?: string;
+  piso_depto?: string;
+  localidad?: string;
   provincia?: string;
   codigo_postal?: string;
+  pais?: string;
 }
 
 export interface VentaDetalle {

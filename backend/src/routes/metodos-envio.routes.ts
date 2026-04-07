@@ -6,11 +6,12 @@ import { NextFunction, Request, Response } from 'express';
 
 const router = Router();
 
-// GET /api/v1/metodos-envio — público
-router.get('/', autenticarOpcional, async (_req, res, next) => {
+// GET /api/v1/metodos-envio — público (solo activos) | admin con ?todos=true (todos)
+router.get('/', autenticarOpcional, async (req, res, next) => {
   try {
+    const traerTodos = req.query.todos === 'true';
     const metodos = await prisma.metodoEnvio.findMany({
-      where: { activo: true },
+      where: traerTodos ? undefined : { activo: true },
       orderBy: { costo: 'asc' },
     });
     res.json(metodos);

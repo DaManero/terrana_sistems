@@ -13,7 +13,7 @@ router.post('/', autenticarOpcional, async (req: Request, res: Response, next: N
   try {
     const datos = {
       ...req.body,
-      cliente_id: req.usuario?.id,
+      cliente_id: req.body.cliente_id ?? req.usuario?.id,
     };
     const venta = await ventasService.crear(datos);
     res.status(201).json(venta);

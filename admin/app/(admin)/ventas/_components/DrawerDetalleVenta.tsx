@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -65,24 +65,30 @@ export function DrawerDetalleVenta({ ventaId, open, onClose }: Props) {
 
   const siguientes: EstadoVenta[] = venta ? (SIGUIENTE_ESTADO[venta.estado] ?? []) : [];
 
+  const domicilioGuardado = venta?.domicilio_envio?.trim() || null;
+
+  const direccionPartes = venta?.direccion
+    ? [
+        venta.direccion.calle,
+        venta.direccion.piso_depto ? `Piso/Dpto ${venta.direccion.piso_depto}` : undefined,
+        venta.direccion.localidad,
+        venta.direccion.provincia,
+        venta.direccion.codigo_postal ? `CP ${venta.direccion.codigo_postal}` : undefined,
+        venta.direccion.pais,
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : null;
+
   const domicilio =
-    venta?.domicilio_envio ??
-    (venta?.direccion
-      ? [
-          venta.direccion.calle,
-          venta.direccion.numero,
-          venta.direccion.piso ? `Piso ${venta.direccion.piso}` : undefined,
-          venta.direccion.departamento ? `Dpto ${venta.direccion.departamento}` : undefined,
-          venta.direccion.ciudad,
-          venta.direccion.provincia,
-        ]
-          .filter(Boolean)
-          .join(', ')
-      : null);
+    [direccionPartes, domicilioGuardado]
+      .filter(Boolean)
+      .join(' | ') || null;
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <SheetContent className="w-full sm:max-w-2xl overflow-hidden p-0">
+        <SheetTitle className="sr-only">Detalle de venta</SheetTitle>
         {isLoading ? (
           <div className="p-8 space-y-4 pt-12">
             {Array.from({ length: 10 }).map((_, i) => (

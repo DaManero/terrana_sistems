@@ -22,6 +22,7 @@ interface DatosCrearVenta {
   direccion_id?: number;
   domicilio_envio?: string;
   codigo_descuento_id?: number;
+  costo_envio_manual?: number;
   notas?: string;
   creado_por?: number;
   metodo_pago?: string;
@@ -31,6 +32,9 @@ interface DatosCrearVenta {
 
 export async function crear(datos: DatosCrearVenta) {
   return prisma.$transaction(async (tx) => {
+    const canalVenta = datos.canal ?? 'ecommerce';
+    const descuentaStockEnCreacion = ['admin', 'whatsapp'].includes(canalVenta);
+
     // 1. Verificar productos y calcular subtotal
     const productosIds = datos.items.map((i) => i.producto_id);
     const productos = await tx.producto.findMany({
@@ -111,9 +115,18 @@ export async function crear(datos: DatosCrearVenta) {
     }
 
     const subtotalConDescuento = subtotal.sub(descuento);
-    const costoEnvio = metodoEnvio.gratis_desde && subtotalConDescuento.gte(metodoEnvio.gratis_desde)
+    const costoEnvioCalculado = metodoEnvio.gratis_desde && subtotalConDescuento.gte(metodoEnvio.gratis_desde)
       ? new Prisma.Decimal(0)
       : metodoEnvio.costo;
+
+    let costoEnvio = costoEnvioCalculado;
+    if (datos.costo_envio_manual !== undefined && datos.costo_envio_manual !== null) {
+      const costoManual = Number(datos.costo_envio_manual);
+      if (Number.isNaN(costoManual) || costoManual < 0) {
+        throw new AppError('Costo de envio manual invalido', 400);
+      }
+      costoEnvio = new Prisma.Decimal(costoManual);
+    }
 
     const total = subtotalConDescuento.add(costoEnvio);
 
@@ -121,13 +134,13 @@ export async function crear(datos: DatosCrearVenta) {
     // Generamos un número de pedido temporal, luego lo actualizamos con el ID real
     const venta = await tx.venta.create({
       data: {
-        numero_pedido: `TRR-TEMP-${Date.now()}`,
+        numero_pedido: `TMP-${Date.now()}`,
         cliente_id: datos.cliente_id,
         guest_nombre: datos.guest_nombre,
         guest_email: datos.guest_email,
         guest_telefono: datos.guest_telefono,
         tipo_cliente: datos.tipo_cliente,
-        canal: datos.canal ?? 'ecommerce',
+        canal: canalVenta,
         subtotal,
         descuento,
         costo_envio: costoEnvio,
@@ -144,6 +157,34 @@ export async function crear(datos: DatosCrearVenta) {
       },
       include: { items: true },
     });
+
+    // Ventas manuales: impactan stock al momento de creación
+    if (descuentaStockEnCreacion) {
+      for (const item of itemsConPrecio) {
+        const producto = productos.find((p) => p.id === item.producto_id)!;
+        const stockAntes = producto.stock;
+        const stockDespues = stockAntes - item.cantidad;
+
+        await tx.producto.update({
+          where: { id: item.producto_id },
+          data: { stock: stockDespues },
+        });
+
+        await tx.stockMovimiento.create({
+          data: {
+            producto_id: item.producto_id,
+            tipo: 'venta',
+            cantidad: -item.cantidad,
+            stock_antes: stockAntes,
+            stock_despues: stockDespues,
+            referencia_id: venta.id,
+            usuario_id: datos.creado_por,
+          },
+        });
+
+        producto.stock = stockDespues;
+      }
+    }
 
     // Actualizar número de pedido con el ID real
     const ventaActualizada = await tx.venta.update({
@@ -181,30 +222,37 @@ export async function confirmarPago(
       },
     });
 
-    // Descontar stock por cada ítem (dentro de la misma transacción)
-    for (const item of venta.items) {
-      const producto = await tx.producto.findUnique({ where: { id: item.producto_id } });
-      if (!producto) continue;
+    const yaDescontada = await tx.stockMovimiento.findFirst({
+      where: { referencia_id: ventaId, tipo: 'venta' },
+      select: { id: true },
+    });
 
-      const stockAntes = producto.stock;
-      const stockDespues = stockAntes - item.cantidad;
+    // Evitar doble descuento si la venta ya impactó stock al crearse (ventas manuales)
+    if (!yaDescontada) {
+      for (const item of venta.items) {
+        const producto = await tx.producto.findUnique({ where: { id: item.producto_id } });
+        if (!producto) continue;
 
-      await tx.producto.update({
-        where: { id: item.producto_id },
-        data: { stock: Math.max(0, stockDespues) },
-      });
+        const stockAntes = producto.stock;
+        const stockDespues = stockAntes - item.cantidad;
 
-      await tx.stockMovimiento.create({
-        data: {
-          producto_id: item.producto_id,
-          tipo: 'venta',
-          cantidad: -item.cantidad,
-          stock_antes: stockAntes,
-          stock_despues: Math.max(0, stockDespues),
-          referencia_id: ventaId,
-          usuario_id: usuarioId,
-        },
-      });
+        await tx.producto.update({
+          where: { id: item.producto_id },
+          data: { stock: Math.max(0, stockDespues) },
+        });
+
+        await tx.stockMovimiento.create({
+          data: {
+            producto_id: item.producto_id,
+            tipo: 'venta',
+            cantidad: -item.cantidad,
+            stock_antes: stockAntes,
+            stock_despues: Math.max(0, stockDespues),
+            referencia_id: ventaId,
+            usuario_id: usuarioId,
+          },
+        });
+      }
     }
 
     // Enviar email de confirmación

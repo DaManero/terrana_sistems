@@ -123,6 +123,7 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
 
   // Envio
   const [metodoEnvioId, setMetodoEnvioId] = useState('');
+  const [costoEnvioManual, setCostoEnvioManual] = useState('');
   const [direccionId, setDireccionId] = useState('');
   const [domicilioEnvio, setDomicilioEnvio] = useState('');
 
@@ -156,7 +157,7 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
 
   const { data: metodosEnvio = [] } = useQuery<MetodoEnvio[]>({
     queryKey: ['metodos-envio'],
-    queryFn: () => api.get('/catalogos/metodos-envio').then((r) => r.data),
+    queryFn: () => api.get('/metodos-envio').then((r) => r.data),
     enabled: open,
   });
 
@@ -190,12 +191,14 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
 
   const subtotalConDesc = subtotal - descuentoMonto;
 
-  const costoEnvio = metodoEnvioSel
+  const costoEnvioCalculado = metodoEnvioSel
     ? metodoEnvioSel.gratis_desde != null &&
       subtotalConDesc >= Number(metodoEnvioSel.gratis_desde)
       ? 0
       : Number(metodoEnvioSel.costo)
     : 0;
+
+  const costoEnvio = costoEnvioManual !== '' ? Number(costoEnvioManual) : costoEnvioCalculado;
 
   const total = subtotalConDesc + costoEnvio;
 
@@ -215,6 +218,7 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
     setItems([]);
     setMostrarDropdown(false);
     setMetodoEnvioId('');
+    setCostoEnvioManual('');
     setDireccionId('');
     setDomicilioEnvio('');
     setCodigoInput('');
@@ -296,6 +300,13 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
 
   const crearVenta = useMutation({
     mutationFn: () => {
+      if (costoEnvioManual !== '') {
+        const costoManual = Number(costoEnvioManual);
+        if (Number.isNaN(costoManual) || costoManual < 0) {
+          throw new Error('Costo de envio invalido');
+        }
+      }
+
       let usuarioId: number | undefined;
       if (typeof window !== 'undefined') {
         try {
@@ -318,6 +329,7 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
           ? { domicilio_envio: domicilioEnvio }
           : {}),
         ...(codigoValidado && { codigo_descuento_id: codigoValidado.id }),
+        ...(costoEnvioManual !== '' && { costo_envio_manual: Number(costoEnvioManual) }),
         ...(usuarioId && { creado_por: usuarioId }),
       };
 
@@ -330,7 +342,7 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
     },
     onError: (e: unknown) => {
       const err = e as { response?: { data?: { error?: string } } };
-      toast.error(err.response?.data?.error ?? 'Error al crear la venta');
+      toast.error(err.response?.data?.error ?? (e instanceof Error ? e.message : 'Error al crear la venta'));
     },
   });
 
@@ -668,7 +680,10 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
                 <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                   Envio *
                 </Label>
-                <Select value={metodoEnvioId} onValueChange={setMetodoEnvioId}>
+                <Select value={metodoEnvioId} onValueChange={(value) => {
+                  setMetodoEnvioId(value);
+                  setCostoEnvioManual('');
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona un metodo" />
                   </SelectTrigger>
@@ -681,6 +696,24 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {metodoEnvioId && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Costo de envio manual ($)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder={String(costoEnvioCalculado)}
+                      value={costoEnvioManual}
+                      onChange={(e) => setCostoEnvioManual(e.target.value)}
+                      className="text-sm"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Dejalo vacio para usar el costo automatico del metodo.
+                    </p>
+                  </div>
+                )}
 
                 {metodoEnvioId && (
                   clienteSeleccionado && direccionesCliente.length > 0 ? (
