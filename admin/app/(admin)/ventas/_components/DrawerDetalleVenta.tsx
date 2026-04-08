@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { User, MapPin, Package, CreditCard, FileText, Check } from 'lucide-react';
+import { User, MapPin, Package, CreditCard, FileText, Check, Pencil } from 'lucide-react';
 import {
   type VentaDetalle,
   type EstadoVenta,
@@ -22,15 +23,18 @@ import {
   formatFecha,
   formatMonto,
 } from './ventas-utils';
+import { DialogEditarVenta } from './DialogEditarVenta';
 
 interface Props {
   ventaId: number | null;
   open: boolean;
   onClose: () => void;
+  editarAlAbrir?: boolean;
 }
 
-export function DrawerDetalleVenta({ ventaId, open, onClose }: Props) {
+export function DrawerDetalleVenta({ ventaId, open, onClose, editarAlAbrir = false }: Props) {
   const qc = useQueryClient();
+  const [editarOpen, setEditarOpen] = useState(false);
 
   const {
     data: venta,
@@ -85,6 +89,17 @@ export function DrawerDetalleVenta({ ventaId, open, onClose }: Props) {
       .filter(Boolean)
       .join(' | ') || null;
 
+  useEffect(() => {
+    if (!open) {
+      setEditarOpen(false);
+      return;
+    }
+
+    if (editarAlAbrir && venta) {
+      setEditarOpen(true);
+    }
+  }, [editarAlAbrir, open, venta]);
+
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <SheetContent className="w-full sm:max-w-2xl overflow-hidden p-0">
@@ -114,6 +129,15 @@ export function DrawerDetalleVenta({ ventaId, open, onClose }: Props) {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 items-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => setEditarOpen(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar
+                  </Button>
                   <span
                     className={`text-xs font-semibold px-3 py-1 rounded-full border ${estadoClase(venta.estado)}`}
                   >
@@ -368,6 +392,15 @@ export function DrawerDetalleVenta({ ventaId, open, onClose }: Props) {
           </div>
         )}
       </SheetContent>
+
+      {/* Dialog de edición (se monta sobre el drawer) */}
+      {venta && (
+        <DialogEditarVenta
+          venta={venta}
+          open={editarOpen}
+          onClose={() => setEditarOpen(false)}
+        />
+      )}
     </Sheet>
   );
 }

@@ -41,6 +41,8 @@ async function obtenerLoteCompleto(id: number) {
   });
 }
 
+const ESTADOS_EDITABLES_LOTE = ['despachado', 'entregado', 'en_preparacion'] as const;
+
 // GET /api/v1/lotes-envio
 router.get('/', autenticar, requiereRol('Admin', 'Operador'), async (_req, res, next) => {
   try {
@@ -65,6 +67,76 @@ router.get('/', autenticar, requiereRol('Admin', 'Operador'), async (_req, res, 
     });
 
     res.json(lotes);
+  } catch (error) { next(error); }
+});
+
+// PATCH /api/v1/lotes-envio/:loteId/ventas/:ventaId/estado
+router.patch('/:loteId/ventas/:ventaId/estado', autenticar, requiereRol('Admin', 'Operador'), async (req, res, next) => {
+  try {
+    const loteId = Number(req.params.loteId);
+    const ventaId = Number(req.params.ventaId);
+    const estado = String(req.body?.estado ?? '').trim();
+    const motivo = String(req.body?.motivo ?? '').trim();
+
+    if (Number.isNaN(loteId) || Number.isNaN(ventaId)) {
+      throw new AppError('IDs inválidos', 400);
+    }
+
+    if (!ESTADOS_EDITABLES_LOTE.includes(estado as (typeof ESTADOS_EDITABLES_LOTE)[number])) {
+      throw new AppError('Estado inválido para edición en lote', 400);
+    }
+
+    const lote = await prismaAny.loteEnvio.findUnique({
+      where: { id: loteId },
+      select: { id: true },
+    });
+
+    if (!lote) throw new AppError('Lote de envío no encontrado', 404);
+
+    const venta = await prisma.venta.findFirst({
+      where: {
+        id: ventaId,
+        lote_envio_id: loteId,
+      },
+      select: { id: true, numero_pedido: true, notas: true },
+    });
+
+    if (!venta) throw new AppError('La venta no pertenece al lote indicado', 404);
+
+    const data: { estado: string; lote_envio_id?: number | null; notas?: string | null } = { estado };
+
+    // Si vuelve del transportista, la dejamos lista para re-lotear.
+    if (estado === 'en_preparacion') {
+      if (!motivo) {
+        throw new AppError('Debes indicar el motivo de la devolución', 400);
+      }
+
+      data.lote_envio_id = null;
+
+      const fecha = new Date().toLocaleString('es-AR');
+      const lineaMotivo = `[${fecha}] Devuelto por transportista: ${motivo}`;
+      data.notas = venta.notas ? `${venta.notas}\n${lineaMotivo}` : lineaMotivo;
+    }
+
+    const ventaActualizada = await prisma.venta.update({
+      where: { id: ventaId },
+      data,
+      include: {
+        cliente: { select: { id: true, nombre: true, apellido: true, email: true } },
+        direccion: true,
+        items: {
+          include: { producto: { select: { id: true, nombre: true } } },
+        },
+      },
+    });
+
+    const loteActualizado = await obtenerLoteCompleto(loteId);
+
+    res.json({
+      mensaje: `Venta ${ventaActualizada.numero_pedido} actualizada a ${estado}`,
+      venta: ventaActualizada,
+      lote: loteActualizado,
+    });
   } catch (error) { next(error); }
 });
 

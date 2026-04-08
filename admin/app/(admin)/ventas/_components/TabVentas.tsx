@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, Eye, Plus, SlidersHorizontal, X, PackagePlus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, Pencil, Plus, SlidersHorizontal, X, PackagePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { DrawerDetalleVenta } from './DrawerDetalleVenta';
 import { DialogNuevaVenta } from './DialogNuevaVenta';
@@ -53,6 +53,7 @@ export function TabVentas() {
   const [fechaHasta, setFechaHasta] = useState('');
   const [ventaSeleccionada, setVentaSeleccionada] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editarAlAbrir, setEditarAlAbrir] = useState(false);
   const [nuevaVentaOpen, setNuevaVentaOpen] = useState(false);
 
   const params = new URLSearchParams({ pagina: String(pagina), porPagina: '15' });
@@ -100,6 +101,13 @@ export function TabVentas() {
 
   function abrirDetalle(id: number) {
     setVentaSeleccionada(id);
+    setEditarAlAbrir(false);
+    setDrawerOpen(true);
+  }
+
+  function abrirEdicion(id: number) {
+    setVentaSeleccionada(id);
+    setEditarAlAbrir(true);
     setDrawerOpen(true);
   }
 
@@ -307,17 +315,30 @@ export function TabVentas() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Ver detalle"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          abrirDetalle(v.id);
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Ver detalle"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirDetalle(v.id);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Editar venta"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirEdicion(v.id);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -358,7 +379,11 @@ export function TabVentas() {
       <DrawerDetalleVenta
         ventaId={ventaSeleccionada}
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false);
+          setEditarAlAbrir(false);
+        }}
+        editarAlAbrir={editarAlAbrir}
       />
 
       {/* ── Dialog nueva venta ───────────────────────────────── */}

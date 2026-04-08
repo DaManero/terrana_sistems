@@ -348,3 +348,134 @@ export async function actualizarEstado(id: number, estado: string) {
 
   return prisma.venta.update({ where: { id }, data: { estado } });
 }
+
+// ─── Editar venta ─────────────────────────────────────────────────────────────
+
+interface DatosEditarVenta {
+  estado?: string;
+  pago_estado?: string;
+  metodo_pago?: string;
+  notas?: string;
+  items?: { producto_id: number; cantidad: number }[];
+}
+
+export async function editarVenta(id: number, datos: DatosEditarVenta) {
+  return prisma.$transaction(async (tx) => {
+    const venta = await tx.venta.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!venta) throw new AppError('Venta no encontrada', 404);
+
+    const updateData: Prisma.VentaUpdateInput = {};
+
+    if (datos.estado !== undefined) updateData.estado = datos.estado;
+    if (datos.pago_estado !== undefined) updateData.pago_estado = datos.pago_estado;
+    if (datos.metodo_pago !== undefined) updateData.metodo_pago = datos.metodo_pago || null;
+    if (datos.notas !== undefined) updateData.notas = datos.notas || null;
+
+    if (datos.items !== undefined) {
+      if (datos.items.length === 0) {
+        throw new AppError('La venta debe tener al menos un producto', 400);
+      }
+
+      const itemsActuales = venta.items;
+      const itemsNuevos = datos.items;
+
+      // ¿Ya se ajustó stock para esta venta?
+      const movimientoExiste = await tx.stockMovimiento.findFirst({
+        where: { referencia_id: id, tipo: 'venta' },
+        select: { id: true },
+      });
+
+      if (movimientoExiste) {
+        // Ajustar diffs de ítems existentes
+        for (const itemActual of itemsActuales) {
+          const itemNuevo = itemsNuevos.find((i) => i.producto_id === itemActual.producto_id);
+          const cantNueva = itemNuevo?.cantidad ?? 0;
+          const devolver = itemActual.cantidad - cantNueva; // >0 devuelve stock, <0 descuenta más
+
+          if (devolver !== 0) {
+            if (devolver < 0) {
+              // Necesita más stock
+              const prod = await tx.producto.findUnique({ where: { id: itemActual.producto_id }, select: { stock: true, nombre: true } });
+              if (!prod || prod.stock < -devolver) {
+                throw new AppError(`Stock insuficiente para: ${prod?.nombre ?? 'producto'}`, 400);
+              }
+            }
+            await tx.producto.update({
+              where: { id: itemActual.producto_id },
+              data: { stock: { increment: devolver } },
+            });
+          }
+        }
+
+        // Ítems completamente nuevos
+        for (const itemNuevo of itemsNuevos) {
+          const existia = itemsActuales.find((i) => i.producto_id === itemNuevo.producto_id);
+          if (!existia) {
+            const prod = await tx.producto.findUnique({ where: { id: itemNuevo.producto_id }, select: { stock: true, nombre: true } });
+            if (!prod) throw new AppError('Producto no encontrado', 404);
+            if (prod.stock < itemNuevo.cantidad) {
+              throw new AppError(`Stock insuficiente para: ${prod.nombre}`, 400);
+            }
+            await tx.producto.update({
+              where: { id: itemNuevo.producto_id },
+              data: { stock: { increment: -itemNuevo.cantidad } },
+            });
+          }
+        }
+      }
+
+      // Obtener precios actuales y calcular nuevo subtotal
+      const productosIds = itemsNuevos.map((i) => i.producto_id);
+      const productos = await tx.producto.findMany({
+        where: { id: { in: productosIds } },
+      });
+
+      if (productos.length !== productosIds.length) {
+        throw new AppError('Uno o más productos no encontrados', 404);
+      }
+
+      const esMayorista = venta.tipo_cliente === 'mayorista';
+      let subtotal = new Prisma.Decimal(0);
+
+      const itemsConPrecio = itemsNuevos.map((item) => {
+        const prod = productos.find((p) => p.id === item.producto_id)!;
+        const precioUnitario = esMayorista ? prod.precio_venta_may : prod.precio_venta_min;
+        const itemSubtotal = precioUnitario.mul(item.cantidad);
+        subtotal = subtotal.add(itemSubtotal);
+        return {
+          venta_id: id,
+          producto_id: item.producto_id,
+          cantidad: item.cantidad,
+          precio_unitario: precioUnitario,
+          subtotal: itemSubtotal,
+        };
+      });
+
+      await tx.ventaItem.deleteMany({ where: { venta_id: id } });
+      await tx.ventaItem.createMany({ data: itemsConPrecio });
+
+      const nuevoTotal = subtotal.sub(venta.descuento).add(venta.costo_envio);
+      updateData.subtotal = subtotal;
+      updateData.total = nuevoTotal.lt(0) ? new Prisma.Decimal(0) : nuevoTotal;
+    }
+
+    return tx.venta.update({
+      where: { id },
+      data: updateData,
+      include: {
+        cliente: { select: { id: true, nombre: true, apellido: true, email: true, cel: true, rol_id: true, activo: true, aprobado: true, created_at: true, updated_at: true } },
+        metodo_envio: true,
+        direccion: true,
+        codigo_descuento: true,
+        items: {
+          include: {
+            producto: { select: { id: true, nombre: true, imagen_url: true } },
+          },
+        },
+      },
+    });
+  });
+}

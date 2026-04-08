@@ -42,7 +42,7 @@ export const CANAL_LABELS: Record<CanalVenta, string> = {
 export function estadoClase(estado: string): string {
   const map: Record<string, string> = {
     pendiente: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    confirmado: 'bg-blue-100 text-blue-800 border-blue-200',
+    confirmado: 'bg-cyan-100 text-cyan-800 border-cyan-200',
     en_preparacion: 'bg-orange-100 text-orange-800 border-orange-200',
     despachado: 'bg-purple-100 text-purple-800 border-purple-200',
     entregado: 'bg-green-100 text-green-800 border-green-200',

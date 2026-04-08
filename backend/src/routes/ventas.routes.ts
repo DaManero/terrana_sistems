@@ -59,4 +59,12 @@ router.patch('/:id/estado', autenticar, requiereRol('Admin', 'Operador'), async 
   } catch (error) { next(error); }
 });
 
+// PUT /api/v1/ventas/:id — Admin / Operador: editar items, estados, metodo_pago, notas
+router.put('/:id', autenticar, requiereRol('Admin', 'Operador'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const venta = await ventasService.editarVenta(Number(req.params.id), req.body);
+    res.json(venta);
+  } catch (error) { next(error); }
+});
+
 export default router;

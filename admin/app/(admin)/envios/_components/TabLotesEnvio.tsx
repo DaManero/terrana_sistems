@@ -5,9 +5,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { PackagePlus, Eye, FileDown } from 'lucide-react';
 
@@ -56,6 +64,8 @@ interface LoteEnvio {
 export function TabLotesEnvio() {
   const qc = useQueryClient();
   const [loteDetalle, setLoteDetalle] = useState<LoteEnvio | null>(null);
+  const [estadoEdicion, setEstadoEdicion] = useState<Record<number, string>>({});
+  const [motivoEdicion, setMotivoEdicion] = useState<Record<number, string>>({});
 
   const { data: lotes = [], isLoading } = useQuery<LoteEnvio[]>({
     queryKey: ['lotes-envio'],
@@ -74,6 +84,25 @@ export function TabLotesEnvio() {
         (err as { response?: { data?: { error?: string; mensaje?: string } } })?.response?.data?.error ??
         (err as { response?: { data?: { error?: string; mensaje?: string } } })?.response?.data?.mensaje ??
         'No se pudieron generar los lotes';
+      toast.error(msg);
+    },
+  });
+
+  const actualizarEstadoVenta = useMutation({
+    mutationFn: ({ loteId, ventaId, estado, motivo }: { loteId: number; ventaId: number; estado: string; motivo?: string }) =>
+      api.patch(`/lotes-envio/${loteId}/ventas/${ventaId}/estado`, { estado, motivo }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['lotes-envio'] });
+      qc.invalidateQueries({ queryKey: ['ventas'] });
+      const lote = res.data?.lote as LoteEnvio | undefined;
+      if (lote) setLoteDetalle(lote);
+      toast.success(res.data?.mensaje ?? 'Estado actualizado');
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { error?: string; mensaje?: string } } })?.response?.data?.error ??
+        (err as { response?: { data?: { error?: string; mensaje?: string } } })?.response?.data?.mensaje ??
+        'No se pudo actualizar el estado de la venta';
       toast.error(msg);
     },
   });
@@ -180,7 +209,16 @@ export function TabLotesEnvio() {
         </Table>
       </div>
 
-      <Dialog open={!!loteDetalle} onOpenChange={(open) => !open && setLoteDetalle(null)}>
+      <Dialog
+        open={!!loteDetalle}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLoteDetalle(null);
+            setEstadoEdicion({});
+            setMotivoEdicion({});
+          }
+        }}
+      >
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
@@ -214,6 +252,9 @@ export function TabLotesEnvio() {
                     const cliente = venta.cliente
                       ? `${venta.cliente.nombre} ${venta.cliente.apellido}`
                       : (venta.guest_nombre ?? 'Invitado');
+                    const estadoSeleccionado = estadoEdicion[venta.id] ?? venta.estado;
+                    const motivo = motivoEdicion[venta.id] ?? '';
+                    const requiereMotivo = estadoSeleccionado === 'en_preparacion';
                     return (
                       <TableRow key={venta.id}>
                         <TableCell className="font-mono text-xs">{venta.numero_pedido}</TableCell>
@@ -242,7 +283,58 @@ export function TabLotesEnvio() {
                           ${Number(venta.total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Badge variant="outline" className="capitalize">{venta.estado}</Badge>
+                          <div className="flex items-center justify-center gap-2">
+                            <Select
+                              value={estadoSeleccionado}
+                              onValueChange={(value) => {
+                                setEstadoEdicion((prev) => ({ ...prev, [venta.id]: value }));
+                              }}
+                            >
+                              <SelectTrigger className="w-40 h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="despachado">Despachado</SelectItem>
+                                <SelectItem value="entregado">Entregado</SelectItem>
+                                <SelectItem value="en_preparacion">Volvió a preparación</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {requiereMotivo && (
+                              <Input
+                                value={motivo}
+                                onChange={(e) => {
+                                  setMotivoEdicion((prev) => ({ ...prev, [venta.id]: e.target.value }));
+                                }}
+                                placeholder="Motivo (obligatorio)"
+                                className="w-52 h-8 text-xs"
+                              />
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8"
+                              disabled={
+                                actualizarEstadoVenta.isPending ||
+                                estadoSeleccionado === venta.estado ||
+                                !loteDetalle
+                              }
+                              onClick={() => {
+                                if (!loteDetalle) return;
+                                if (requiereMotivo && !motivo.trim()) {
+                                  toast.error('Debes ingresar el motivo de devolución');
+                                  return;
+                                }
+                                actualizarEstadoVenta.mutate({
+                                  loteId: loteDetalle.id,
+                                  ventaId: venta.id,
+                                  estado: estadoSeleccionado,
+                                  motivo: motivo.trim() || undefined,
+                                });
+                              }}
+                            >
+                              Guardar
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
