@@ -30,6 +30,7 @@ import {
   type EstadoPago,
   ESTADO_LABELS,
   PAGO_LABELS,
+  METODOS_PAGO_OPTIONS,
   formatMonto,
 } from './ventas-utils';
 
@@ -60,17 +61,6 @@ interface Props {
 
 const ESTADOS_VENTA = Object.entries(ESTADO_LABELS) as [EstadoVenta, string][];
 const ESTADOS_PAGO = Object.entries(PAGO_LABELS) as [EstadoPago, string][];
-
-const METODOS_PAGO = [
-  { value: '', label: '— Sin especificar —' },
-  { value: 'efectivo', label: 'Efectivo' },
-  { value: 'transferencia', label: 'Transferencia' },
-  { value: 'mercadopago', label: 'Mercado Pago' },
-  { value: 'tarjeta_debito', label: 'Tarjeta de débito' },
-  { value: 'tarjeta_credito', label: 'Tarjeta de crédito' },
-  { value: 'cheque', label: 'Cheque' },
-  { value: 'cuenta_corriente', label: 'Cuenta corriente' },
-];
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
@@ -187,8 +177,12 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
       onClose();
     },
     onError: (e: unknown) => {
-      const err = e as { response?: { data?: { error?: string } } };
-      toast.error(err.response?.data?.error ?? (e instanceof Error ? e.message : 'Error al guardar'));
+      const err = e as { response?: { data?: { error?: string; mensaje?: string } } };
+      toast.error(
+        err.response?.data?.error ??
+        err.response?.data?.mensaje ??
+        (e instanceof Error ? e.message : 'Error al guardar')
+      );
     },
   });
 
@@ -268,7 +262,7 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">— Sin especificar —</SelectItem>
-                    {METODOS_PAGO.filter((m) => m.value !== '').map((m) => (
+                    {METODOS_PAGO_OPTIONS.map((m) => (
                       <SelectItem key={m.value} value={m.value}>
                         {m.label}
                       </SelectItem>

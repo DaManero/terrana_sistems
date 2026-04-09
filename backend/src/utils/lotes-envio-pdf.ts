@@ -2,6 +2,9 @@ import PDFDocument from 'pdfkit';
 
 interface LotePdfVenta {
   numero_pedido: string;
+  total?: number | string;
+  pago_estado?: string | null;
+  metodo_pago?: string | null;
   cliente: { nombre: string; apellido: string } | null;
   guest_nombre?: string | null;
   direccion?: {
@@ -30,6 +33,25 @@ interface LotePdfData {
 const LABEL_COLUMNS = 2;
 const LABEL_ROWS = 3;
 const LABELS_PER_PAGE = LABEL_COLUMNS * LABEL_ROWS;
+
+function normalizarTexto(texto?: string | null): string {
+  return String(texto ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function esPagoEnDestino(venta: LotePdfVenta): boolean {
+  const pagoEstado = normalizarTexto(venta.pago_estado);
+  const metodoPago = normalizarTexto(venta.metodo_pago);
+  return pagoEstado === 'en destino' || pagoEstado === 'en_destino' || metodoPago === 'en destino' || metodoPago === 'en_destino';
+}
+
+function formatMonto(n: number | string | undefined): string {
+  const monto = Number(n ?? 0);
+  return `$${monto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 function drawCutMarks(doc: PDFKit.PDFDocument, x: number, y: number, width: number, height: number) {
   const mark = 10;
@@ -127,6 +149,18 @@ function drawEtiqueta(
   });
 
   cursorY += 60;
+
+  if (esPagoEnDestino(venta)) {
+    drawSectionLabel(doc, 'Cobro', innerX, cursorY, 50);
+    doc.font('Helvetica-Bold').fontSize(8.4).fillColor('#8A6A00').text('Pago en destino', innerX, cursorY + 19, {
+      width: innerWidth,
+    });
+    doc.font('Helvetica-Bold').fontSize(9.2).fillColor('#1F1B16').text(`Cobrar: ${formatMonto(venta.total)}`, innerX, cursorY + 31, {
+      width: innerWidth,
+    });
+    cursorY += 44;
+  }
+
   drawSectionLabel(doc, 'Productos', innerX, cursorY, 62);
 
   let productsY = cursorY + 21;
@@ -244,6 +278,11 @@ export function buildLoteEnvioPdf(lote: LotePdfData): PDFKit.PDFDocument {
     doc.fontSize(10).font('Helvetica');
     doc.text(`Cliente: ${cliente}`);
     doc.text(`Direccion: ${formatDireccion(venta)}`);
+    if (esPagoEnDestino(venta)) {
+      doc.fillColor('#8A6A00').font('Helvetica-Bold').text('Pago en destino');
+      doc.fillColor('#000000').font('Helvetica-Bold').text(`Importe a cobrar: ${formatMonto(venta.total)}`);
+      doc.font('Helvetica');
+    }
     doc.moveDown(0.3);
     doc.font('Helvetica-Bold').text('Productos:');
     doc.font('Helvetica');

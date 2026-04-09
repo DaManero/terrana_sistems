@@ -10,6 +10,11 @@ interface ItemCarrito {
   cantidad: number;
 }
 
+interface ItemStockVenta {
+  producto_id: number;
+  cantidad: number;
+}
+
 interface DatosCrearVenta {
   cliente_id?: number;
   guest_nombre?: string;
@@ -26,6 +31,108 @@ interface DatosCrearVenta {
   notas?: string;
   creado_por?: number;
   metodo_pago?: string;
+}
+
+async function obtenerUltimoMovimientoStockVenta(
+  tx: Prisma.TransactionClient,
+  ventaId: number
+) {
+  return tx.stockMovimiento.findFirst({
+    where: {
+      referencia_id: ventaId,
+      tipo: { in: ['venta', 'devolucion'] },
+    },
+    orderBy: { id: 'desc' },
+    select: { id: true, tipo: true },
+  });
+}
+
+async function descontarStockVentaSiCorresponde(
+  tx: Prisma.TransactionClient,
+  ventaId: number,
+  items: ItemStockVenta[],
+  usuarioId?: number
+) {
+  const ultimoMovimiento = await obtenerUltimoMovimientoStockVenta(tx, ventaId);
+
+  if (ultimoMovimiento?.tipo === 'venta') return;
+
+  for (const item of items) {
+    const producto = await tx.producto.findUnique({
+      where: { id: item.producto_id },
+      select: { stock: true, nombre: true },
+    });
+
+    if (!producto) {
+      throw new AppError(`Producto no encontrado para descontar stock: ${item.producto_id}`, 404);
+    }
+
+    if (producto.stock < item.cantidad) {
+      throw new AppError('No hay stock suficiente para reactivar esta venta', 400);
+    }
+
+    const stockAntes = producto.stock;
+    const stockDespues = stockAntes - item.cantidad;
+
+    await tx.producto.update({
+      where: { id: item.producto_id },
+      data: { stock: stockDespues },
+    });
+
+    await tx.stockMovimiento.create({
+      data: {
+        producto_id: item.producto_id,
+        tipo: 'venta',
+        cantidad: -item.cantidad,
+        stock_antes: stockAntes,
+        stock_despues: stockDespues,
+        referencia_id: ventaId,
+        usuario_id: usuarioId,
+      },
+    });
+  }
+}
+
+async function devolverStockVentaSiCorresponde(
+  tx: Prisma.TransactionClient,
+  ventaId: number,
+  items: ItemStockVenta[],
+  usuarioId?: number
+) {
+  const ultimoMovimiento = await obtenerUltimoMovimientoStockVenta(tx, ventaId);
+
+  if (ultimoMovimiento?.tipo !== 'venta') return;
+
+  for (const item of items) {
+    const producto = await tx.producto.findUnique({
+      where: { id: item.producto_id },
+      select: { stock: true, nombre: true },
+    });
+
+    if (!producto) {
+      throw new AppError(`Producto no encontrado para devolver stock: ${item.producto_id}`, 404);
+    }
+
+    const stockAntes = producto.stock;
+    const stockDespues = stockAntes + item.cantidad;
+
+    await tx.producto.update({
+      where: { id: item.producto_id },
+      data: { stock: stockDespues },
+    });
+
+    await tx.stockMovimiento.create({
+      data: {
+        producto_id: item.producto_id,
+        tipo: 'devolucion',
+        cantidad: item.cantidad,
+        stock_antes: stockAntes,
+        stock_despues: stockDespues,
+        referencia_id: ventaId,
+        usuario_id: usuarioId,
+      },
+    });
+  }
 }
 
 // ─── Crear venta (sin procesar pago aún — pago_estado: pendiente) ─────────────
@@ -222,38 +329,7 @@ export async function confirmarPago(
       },
     });
 
-    const yaDescontada = await tx.stockMovimiento.findFirst({
-      where: { referencia_id: ventaId, tipo: 'venta' },
-      select: { id: true },
-    });
-
-    // Evitar doble descuento si la venta ya impactó stock al crearse (ventas manuales)
-    if (!yaDescontada) {
-      for (const item of venta.items) {
-        const producto = await tx.producto.findUnique({ where: { id: item.producto_id } });
-        if (!producto) continue;
-
-        const stockAntes = producto.stock;
-        const stockDespues = stockAntes - item.cantidad;
-
-        await tx.producto.update({
-          where: { id: item.producto_id },
-          data: { stock: Math.max(0, stockDespues) },
-        });
-
-        await tx.stockMovimiento.create({
-          data: {
-            producto_id: item.producto_id,
-            tipo: 'venta',
-            cantidad: -item.cantidad,
-            stock_antes: stockAntes,
-            stock_despues: Math.max(0, stockDespues),
-            referencia_id: ventaId,
-            usuario_id: usuarioId,
-          },
-        });
-      }
-    }
+    await descontarStockVentaSiCorresponde(tx, ventaId, venta.items, usuarioId);
 
     // Enviar email de confirmación
     const emailDestino = venta.guest_email;
@@ -342,11 +418,23 @@ export async function obtenerPorId(id: number) {
 
 // ─── Actualizar estado ────────────────────────────────────────────────────────
 
-export async function actualizarEstado(id: number, estado: string) {
-  const venta = await prisma.venta.findUnique({ where: { id } });
-  if (!venta) throw new AppError('Venta no encontrada', 404);
+export async function actualizarEstado(id: number, estado: string, usuarioId?: number) {
+  return prisma.$transaction(async (tx) => {
+    const venta = await tx.venta.findUnique({ where: { id }, include: { items: true } });
+    if (!venta) throw new AppError('Venta no encontrada', 404);
 
-  return prisma.venta.update({ where: { id }, data: { estado } });
+    if (venta.estado === 'cancelado' && estado !== 'cancelado') {
+      await descontarStockVentaSiCorresponde(tx, id, venta.items, usuarioId);
+    }
+
+    const ventaActualizada = await tx.venta.update({ where: { id }, data: { estado } });
+
+    if (venta.estado !== 'cancelado' && estado === 'cancelado') {
+      await devolverStockVentaSiCorresponde(tx, id, venta.items, usuarioId);
+    }
+
+    return ventaActualizada;
+  });
 }
 
 // ─── Editar venta ─────────────────────────────────────────────────────────────
@@ -359,7 +447,7 @@ interface DatosEditarVenta {
   items?: { producto_id: number; cantidad: number }[];
 }
 
-export async function editarVenta(id: number, datos: DatosEditarVenta) {
+export async function editarVenta(id: number, datos: DatosEditarVenta, usuarioId?: number) {
   return prisma.$transaction(async (tx) => {
     const venta = await tx.venta.findUnique({
       where: { id },
@@ -382,13 +470,10 @@ export async function editarVenta(id: number, datos: DatosEditarVenta) {
       const itemsActuales = venta.items;
       const itemsNuevos = datos.items;
 
-      // ¿Ya se ajustó stock para esta venta?
-      const movimientoExiste = await tx.stockMovimiento.findFirst({
-        where: { referencia_id: id, tipo: 'venta' },
-        select: { id: true },
-      });
+      const ultimoMovimiento = await obtenerUltimoMovimientoStockVenta(tx, id);
+      const stockActualmenteDescontado = ultimoMovimiento?.tipo === 'venta';
 
-      if (movimientoExiste) {
+      if (stockActualmenteDescontado) {
         // Ajustar diffs de ítems existentes
         for (const itemActual of itemsActuales) {
           const itemNuevo = itemsNuevos.find((i) => i.producto_id === itemActual.producto_id);
@@ -462,7 +547,9 @@ export async function editarVenta(id: number, datos: DatosEditarVenta) {
       updateData.total = nuevoTotal.lt(0) ? new Prisma.Decimal(0) : nuevoTotal;
     }
 
-    return tx.venta.update({
+    const estadoFinal = datos.estado ?? venta.estado;
+
+    const ventaActualizada = await tx.venta.update({
       where: { id },
       data: updateData,
       include: {
@@ -477,5 +564,31 @@ export async function editarVenta(id: number, datos: DatosEditarVenta) {
         },
       },
     });
+
+    if (venta.estado !== 'cancelado' && estadoFinal === 'cancelado') {
+      await devolverStockVentaSiCorresponde(
+        tx,
+        id,
+        ventaActualizada.items.map((item) => ({
+          producto_id: item.producto_id,
+          cantidad: item.cantidad,
+        })),
+        usuarioId
+      );
+    }
+
+    if (venta.estado === 'cancelado' && estadoFinal !== 'cancelado') {
+      await descontarStockVentaSiCorresponde(
+        tx,
+        id,
+        ventaActualizada.items.map((item) => ({
+          producto_id: item.producto_id,
+          cantidad: item.cantidad,
+        })),
+        usuarioId
+      );
+    }
+
+    return ventaActualizada;
   });
 }

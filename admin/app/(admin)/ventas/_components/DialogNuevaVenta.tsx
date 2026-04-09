@@ -36,6 +36,7 @@ import {
   Mail,
   ShieldCheck,
 } from 'lucide-react';
+import { METODOS_PAGO_OPTIONS } from './ventas-utils';
 
 // --- Interfaces locales ---
 
@@ -536,10 +537,9 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
                     <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">No especificado</SelectItem>
-                      <SelectItem value="efectivo">Efectivo</SelectItem>
-                      <SelectItem value="transferencia">Transferencia</SelectItem>
-                      <SelectItem value="mercadopago">MercadoPago</SelectItem>
-                      <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                      {METODOS_PAGO_OPTIONS.map((m) => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

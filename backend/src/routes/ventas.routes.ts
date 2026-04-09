@@ -54,7 +54,7 @@ router.get('/:id', autenticar, async (req: Request, res: Response, next: NextFun
 // PATCH /api/v1/ventas/:id/estado — Admin / Operador
 router.patch('/:id/estado', autenticar, requiereRol('Admin', 'Operador'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const venta = await ventasService.actualizarEstado(Number(req.params.id), req.body.estado);
+    const venta = await ventasService.actualizarEstado(Number(req.params.id), req.body.estado, req.usuario?.id);
     res.json(venta);
   } catch (error) { next(error); }
 });
@@ -62,7 +62,7 @@ router.patch('/:id/estado', autenticar, requiereRol('Admin', 'Operador'), async 
 // PUT /api/v1/ventas/:id — Admin / Operador: editar items, estados, metodo_pago, notas
 router.put('/:id', autenticar, requiereRol('Admin', 'Operador'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const venta = await ventasService.editarVenta(Number(req.params.id), req.body);
+    const venta = await ventasService.editarVenta(Number(req.params.id), req.body, req.usuario?.id);
     res.json(venta);
   } catch (error) { next(error); }
 });

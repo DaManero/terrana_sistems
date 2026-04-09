@@ -55,7 +55,13 @@ export function DrawerDetalleVenta({ ventaId, open, onClose, editarAlAbrir = fal
       qc.invalidateQueries({ queryKey: ['venta', ventaId] });
       qc.invalidateQueries({ queryKey: ['ventas'] });
     },
-    onError: () => toast.error('Error al actualizar el estado'),
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { error?: string; mensaje?: string } } })?.response?.data?.error ??
+        (err as { response?: { data?: { error?: string; mensaje?: string } } })?.response?.data?.mensaje ??
+        'Error al actualizar el estado';
+      toast.error(msg);
+    },
   });
 
   const nombreCliente = venta

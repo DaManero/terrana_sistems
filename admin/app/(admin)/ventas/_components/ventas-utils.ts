@@ -36,6 +36,24 @@ export const CANAL_LABELS: Record<CanalVenta, string> = {
   whatsapp: 'WhatsApp',
 };
 
+export interface MetodoPagoOption {
+  value: string;
+  label: string;
+}
+
+export const METODOS_PAGO_OPTIONS: MetodoPagoOption[] = [
+  { value: 'En Destino', label: 'En Destino' },
+  { value: 'efectivo', label: 'Efectivo' },
+  { value: 'transferencia', label: 'Transferencia' },
+  { value: 'mercadopago', label: 'Mercado Pago' },
+  { value: 'tarjeta_debito', label: 'Tarjeta de débito' },
+  { value: 'tarjeta_credito', label: 'Tarjeta de crédito' },
+  { value: 'cheque', label: 'Cheque' },
+  { value: 'cuenta_corriente', label: 'Cuenta corriente' },
+  // Compatibilidad con ventas historicas que guardaron un valor genérico.
+  { value: 'tarjeta', label: 'Tarjeta' },
+];
+
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
 /** Clases Tailwind para el badge de estado (inline span con border) */
