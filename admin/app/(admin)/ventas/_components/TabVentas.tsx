@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight, Eye, Plus, SlidersHorizontal, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, Pencil, Plus, SlidersHorizontal, X, PackagePlus } from 'lucide-react';
+import { toast } from 'sonner';
 import { DrawerDetalleVenta } from './DrawerDetalleVenta';
 import { DialogNuevaVenta } from './DialogNuevaVenta';
 import {
@@ -43,6 +44,7 @@ const ESTADOS_PAGO = Object.entries(PAGO_LABELS) as [EstadoPago, string][];
 const CANALES = Object.entries(CANAL_LABELS) as [string, string][];
 
 export function TabVentas() {
+  const qc = useQueryClient();
   const [pagina, setPagina] = useState(1);
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroPago, setFiltroPago] = useState('');
@@ -51,6 +53,7 @@ export function TabVentas() {
   const [fechaHasta, setFechaHasta] = useState('');
   const [ventaSeleccionada, setVentaSeleccionada] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editarAlAbrir, setEditarAlAbrir] = useState(false);
   const [nuevaVentaOpen, setNuevaVentaOpen] = useState(false);
 
   const params = new URLSearchParams({ pagina: String(pagina), porPagina: '15' });
@@ -69,6 +72,22 @@ export function TabVentas() {
   const totalPaginas: number = data?.totalPaginas ?? 1;
   const totalRegistros: number = data?.total ?? 0;
 
+  const generarLotes = useMutation({
+    mutationFn: () => api.post('/lotes-envio/generar'),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['ventas'] });
+      qc.invalidateQueries({ queryKey: ['lotes-envio'] });
+      toast.success(res.data?.mensaje ?? 'Lotes generados');
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { error?: string; mensaje?: string } } })?.response?.data?.error ??
+        (err as { response?: { data?: { error?: string; mensaje?: string } } })?.response?.data?.mensaje ??
+        'No se pudieron generar lotes';
+      toast.error(msg);
+    },
+  });
+
   const hayFiltros = filtroEstado || filtroPago || filtroCanal || fechaDesde || fechaHasta;
 
   function limpiarFiltros() {
@@ -82,6 +101,13 @@ export function TabVentas() {
 
   function abrirDetalle(id: number) {
     setVentaSeleccionada(id);
+    setEditarAlAbrir(false);
+    setDrawerOpen(true);
+  }
+
+  function abrirEdicion(id: number) {
+    setVentaSeleccionada(id);
+    setEditarAlAbrir(true);
     setDrawerOpen(true);
   }
 
@@ -188,6 +214,16 @@ export function TabVentas() {
         <span className="ml-auto text-sm text-muted-foreground">
           {isLoading ? '...' : `${totalRegistros} ${totalRegistros === 1 ? 'venta' : 'ventas'}`}
         </span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => generarLotes.mutate()}
+          disabled={generarLotes.isPending}
+        >
+          <PackagePlus className="h-4 w-4" />
+          {generarLotes.isPending ? 'Generando...' : 'Generar lotes'}
+        </Button>
         <Button size="sm" className="gap-1.5" onClick={() => setNuevaVentaOpen(true)}>
           <Plus className="h-4 w-4" />
           Nueva venta
@@ -279,17 +315,30 @@ export function TabVentas() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Ver detalle"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          abrirDetalle(v.id);
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Ver detalle"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirDetalle(v.id);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Editar venta"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirEdicion(v.id);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -330,7 +379,11 @@ export function TabVentas() {
       <DrawerDetalleVenta
         ventaId={ventaSeleccionada}
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false);
+          setEditarAlAbrir(false);
+        }}
+        editarAlAbrir={editarAlAbrir}
       />
 
       {/* ── Dialog nueva venta ───────────────────────────────── */}

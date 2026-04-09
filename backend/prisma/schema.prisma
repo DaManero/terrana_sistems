@@ -56,6 +56,7 @@ model User {
   stock_movimientos     StockMovimiento[]
   etiquetas_generadas   EtiquetaEnvio[]        @relation("GeneradorEtiqueta")
   etiquetas_impresas    EtiquetaEnvio[]        @relation("ImpresorEtiqueta")
+  lotes_envio_generados LoteEnvio[]            @relation("GeneradorLote")
   password_tokens       PasswordResetToken[]
   invitaciones_enviadas InvitationToken[]      @relation("AdminInvitaciones")
 
@@ -211,6 +212,7 @@ model Venta {
   direccion_id         Int?
   domicilio_envio      String?
   codigo_descuento_id  Int?
+  lote_envio_id        Int?
   notas                String?
   creado_por           Int?
   created_at           DateTime @default(now())
@@ -221,6 +223,7 @@ model Venta {
   metodo_envio         MetodoEnvio?       @relation(fields: [metodo_envio_id], references: [id])
   direccion            Direccion?         @relation(fields: [direccion_id], references: [id])
   codigo_descuento     CodigoDescuento?   @relation(fields: [codigo_descuento_id], references: [id])
+  lote_envio           LoteEnvio?         @relation(fields: [lote_envio_id], references: [id])
   items                VentaItem[]
   etiquetas_envio      EtiquetaEnvio[]
 
@@ -375,8 +378,24 @@ model MetodoEnvio {
   activo        Boolean  @default(true)
 
   ventas Venta[]
+  lotes_envio LoteEnvio[]
 
   @@map("metodos_envio")
+}
+
+model LoteEnvio {
+  id              Int      @id @default(autoincrement())
+  numero          String   @unique @db.VarChar(30)
+  metodo_envio_id Int
+  generado_por    Int?
+  total_ventas    Int      @default(0)
+  created_at      DateTime @default(now())
+
+  metodo_envio MetodoEnvio @relation(fields: [metodo_envio_id], references: [id])
+  generador    User?       @relation("GeneradorLote", fields: [generado_por], references: [id])
+  ventas       Venta[]
+
+  @@map("lotes_envio")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

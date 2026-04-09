@@ -16,6 +16,17 @@ export interface DatosActualizarUsuario {
   nombre?: string;
   apellido?: string;
   cel?: string;
+  email?: string | null;
+  direccion?: {
+    id?: number;
+    calle: string;
+    piso_depto?: string;
+    localidad: string;
+    provincia: string;
+    codigo_postal: string;
+    alias?: string;
+    telefono?: string;
+  };
 }
 
 // Elimina el campo password de un objeto usuario antes de devolverlo al cliente
@@ -59,7 +70,7 @@ export async function listar(filtros: FiltrosUsuarios) {
     prisma.user.count({ where }),
     prisma.user.findMany({
       where,
-      include: { rol: true },
+      include: { rol: true, direcciones: true },
       orderBy: { created_at: 'desc' },
       skip: (pagina - 1) * porPagina,
       take: porPagina,
@@ -91,14 +102,99 @@ export async function obtenerPorId(id: number) {
 // ─── Actualizar datos del perfil ──────────────────────────────────────────────
 
 export async function actualizar(id: number, datos: DatosActualizarUsuario) {
-  const usuario = await prisma.user.update({
-    where: { id },
-    data: {
-      ...(datos.nombre && { nombre: datos.nombre }),
-      ...(datos.apellido && { apellido: datos.apellido }),
-      ...(datos.cel !== undefined && { cel: datos.cel }),
-    },
-    include: { rol: true },
+  const existente = await prisma.user.findUnique({ where: { id } });
+  if (!existente) throw new AppError('Usuario no encontrado', 404);
+
+  let emailNormalizado: string | null | undefined = undefined;
+  if (datos.email !== undefined) {
+    emailNormalizado = datos.email?.trim().toLowerCase() || null;
+    if (emailNormalizado) {
+      const repetido = await prisma.user.findFirst({
+        where: {
+          email: emailNormalizado,
+          NOT: { id },
+        },
+      });
+      if (repetido) throw new AppError('Ya existe una cuenta con ese email', 409);
+    }
+  }
+
+  const usuario = await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id },
+      data: {
+        ...(datos.nombre !== undefined && { nombre: datos.nombre.trim() }),
+        ...(datos.apellido !== undefined && { apellido: datos.apellido.trim() }),
+        ...(datos.cel !== undefined && { cel: datos.cel?.trim() || null }),
+        ...(emailNormalizado !== undefined && { email: emailNormalizado }),
+      },
+    });
+
+    if (datos.direccion) {
+      const {
+        id: direccionId,
+        calle,
+        piso_depto,
+        localidad,
+        provincia,
+        codigo_postal,
+        alias,
+        telefono,
+      } = datos.direccion;
+
+      if (!calle?.trim() || !localidad?.trim() || !provincia?.trim() || !codigo_postal?.trim()) {
+        throw new AppError('calle, localidad, provincia y codigo_postal son requeridos', 400);
+      }
+
+      const dataDireccion = {
+        calle: calle.trim(),
+        piso_depto: piso_depto?.trim() || null,
+        localidad: localidad.trim(),
+        provincia: provincia.trim(),
+        codigo_postal: codigo_postal.trim(),
+        alias: alias?.trim() || null,
+        telefono: telefono?.trim() || null,
+      };
+
+      if (direccionId) {
+        const direccion = await tx.direccion.findUnique({ where: { id: direccionId } });
+        if (!direccion || direccion.usuario_id !== id) {
+          throw new AppError('Dirección no encontrada para este usuario', 404);
+        }
+        await tx.direccion.update({
+          where: { id: direccionId },
+          data: dataDireccion,
+        });
+      } else {
+        const principal = await tx.direccion.findFirst({
+          where: { usuario_id: id, predeterminada: true },
+          orderBy: { created_at: 'asc' },
+        });
+
+        if (principal) {
+          await tx.direccion.update({
+            where: { id: principal.id },
+            data: dataDireccion,
+          });
+        } else {
+          await tx.direccion.create({
+            data: {
+              usuario_id: id,
+              ...dataDireccion,
+              predeterminada: true,
+            },
+          });
+        }
+      }
+    }
+
+    const actualizado = await tx.user.findUnique({
+      where: { id },
+      include: { rol: true, direcciones: true },
+    });
+
+    if (!actualizado) throw new AppError('Usuario no encontrado', 404);
+    return actualizado;
   });
 
   return sanitizar(usuario);

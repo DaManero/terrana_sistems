@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { getUser } from '@/lib/auth';
@@ -35,6 +35,7 @@ interface Direccion {
   provincia: string;
   codigo_postal: string;
   predeterminada: boolean;
+  telefono?: string;
 }
 
 interface Usuario {
@@ -58,6 +59,19 @@ interface UsuariosPaginados {
   totalPaginas: number;
 }
 
+interface FormEdicionCliente {
+  nombre: string;
+  apellido: string;
+  email: string;
+  cel: string;
+  direccionId: number | null;
+  calle: string;
+  piso_depto: string;
+  localidad: string;
+  provincia: string;
+  codigo_postal: string;
+}
+
 const ROL_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   'Admin':              'default',
   'Operador':           'secondary',
@@ -77,6 +91,18 @@ export function TabUsuarios() {
   const [detalle, setDetalle] = useState<Usuario | null>(null);
   const [rolEditado, setRolEditado] = useState<string>('');
   const [usuarioAEliminar, setUsuarioAEliminar] = useState<Usuario | null>(null);
+  const [formEdicion, setFormEdicion] = useState<FormEdicionCliente>({
+    nombre: '',
+    apellido: '',
+    email: '',
+    cel: '',
+    direccionId: null,
+    calle: '',
+    piso_depto: '',
+    localidad: '',
+    provincia: '',
+    codigo_postal: '',
+  });
 
   // ─── Roles para el selector ──────────────────────────────────────────────
   const { data: roles = [] } = useQuery<Rol[]>({
@@ -98,6 +124,34 @@ export function TabUsuarios() {
 
   const usuarios = data?.data ?? [];
   const totalPaginas = data?.totalPaginas ?? 1;
+
+  const { data: detalleCompleto, isFetching: cargandoDetalle } = useQuery<Usuario>({
+    queryKey: ['usuario-detalle', detalle?.id],
+    queryFn: () => api.get(`/users/${detalle!.id}`).then((r) => r.data),
+    enabled: !!detalle,
+    staleTime: 0,
+  });
+
+  const detalleActual = detalleCompleto ?? detalle;
+
+  useEffect(() => {
+    if (!detalleActual) return;
+    const direccionPrincipal =
+      detalleActual.direcciones?.find((d) => d.predeterminada) ?? detalleActual.direcciones?.[0];
+
+    setFormEdicion({
+      nombre: detalleActual.nombre ?? '',
+      apellido: detalleActual.apellido ?? '',
+      email: detalleActual.email ?? '',
+      cel: detalleActual.cel ?? '',
+      direccionId: direccionPrincipal?.id ?? null,
+      calle: direccionPrincipal?.calle ?? '',
+      piso_depto: direccionPrincipal?.piso_depto ?? '',
+      localidad: direccionPrincipal?.localidad ?? '',
+      provincia: direccionPrincipal?.provincia ?? '',
+      codigo_postal: direccionPrincipal?.codigo_postal ?? '',
+    });
+  }, [detalleActual]);
 
   // ─── Toggle estado (solo Admin) ──────────────────────────────────────────
   const toggleEstado = useMutation({
@@ -148,6 +202,48 @@ export function TabUsuarios() {
       toast.error(msg);
     },
   });
+
+  const guardarDatosCliente = useMutation({
+    mutationFn: () => {
+      if (!detalleActual) throw new Error('No hay usuario seleccionado');
+      return api.patch(`/users/${detalleActual.id}`, {
+        nombre: formEdicion.nombre,
+        apellido: formEdicion.apellido,
+        email: formEdicion.email,
+        cel: formEdicion.cel,
+        direccion: {
+          id: formEdicion.direccionId ?? undefined,
+          calle: formEdicion.calle,
+          piso_depto: formEdicion.piso_depto || undefined,
+          localidad: formEdicion.localidad,
+          provincia: formEdicion.provincia,
+          codigo_postal: formEdicion.codigo_postal,
+        },
+      });
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['usuarios'] });
+      qc.invalidateQueries({ queryKey: ['usuario-detalle', detalleActual?.id] });
+      setDetalle(res.data);
+      toast.success('Datos del cliente actualizados');
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { error?: string; mensaje?: string } } })?.response?.data?.error ??
+        (err as { response?: { data?: { error?: string; mensaje?: string } } })?.response?.data?.mensaje ??
+        'Error al actualizar datos del cliente';
+      toast.error(msg);
+    },
+  });
+
+  const puedeGuardarCliente =
+    !!detalleActual &&
+    !!formEdicion.nombre.trim() &&
+    !!formEdicion.apellido.trim() &&
+    !!formEdicion.calle.trim() &&
+    !!formEdicion.localidad.trim() &&
+    !!formEdicion.provincia.trim() &&
+    !!formEdicion.codigo_postal.trim();
   const handleBuscar = () => {
     setBusquedaActiva(busqueda);
     setPagina(1);
@@ -329,85 +425,113 @@ export function TabUsuarios() {
       )}
 
       <Dialog open={!!detalle} onOpenChange={(open) => !open && setDetalle(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalle de usuario</DialogTitle>
           </DialogHeader>
-          {detalle && (
+          {detalleActual && (
             <div className="space-y-4 py-2">
+              {cargandoDetalle && (
+                <p className="text-xs text-muted-foreground">Actualizando datos...</p>
+              )}
               <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div>
                   <Label className="text-muted-foreground text-xs">Nombre completo</Label>
-                  <p className="font-medium mt-0.5">{detalle.nombre} {detalle.apellido}</p>
+                  <div className="grid grid-cols-2 gap-2 mt-0.5">
+                    <Input
+                      value={formEdicion.nombre}
+                      onChange={(e) => setFormEdicion((prev) => ({ ...prev, nombre: e.target.value }))}
+                      placeholder="Nombre"
+                      className="h-8"
+                    />
+                    <Input
+                      value={formEdicion.apellido}
+                      onChange={(e) => setFormEdicion((prev) => ({ ...prev, apellido: e.target.value }))}
+                      placeholder="Apellido"
+                      className="h-8"
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Email</Label>
-                  <p className="font-medium mt-0.5">{detalle.email}</p>
+                  <Input
+                    value={formEdicion.email}
+                    onChange={(e) => setFormEdicion((prev) => ({ ...prev, email: e.target.value }))}
+                    placeholder="cliente@email.com"
+                    className="h-8 mt-0.5"
+                  />
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Teléfono</Label>
-                  <p className="font-medium mt-0.5">{detalle.cel ?? '—'}</p>
+                  <Input
+                    value={formEdicion.cel}
+                    onChange={(e) => setFormEdicion((prev) => ({ ...prev, cel: e.target.value }))}
+                    placeholder="11 1234 5678"
+                    className="h-8 mt-0.5"
+                  />
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Rol</Label>
                   {esAdmin ? (
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Select
-                        value={String(rolEditado || detalle.rol.id)}
-                        onValueChange={(v) => setRolEditado(v)}
-                      >
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {roles.map((r) => (
-                            <SelectItem key={r.id} value={String(r.id)}>{r.nombre}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="mt-0.5 flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
+                      <div className="flex-1 min-w-0">
+                        <Select
+                          value={String(rolEditado || detalleActual.rol.id)}
+                          onValueChange={(v) => setRolEditado(v)}
+                        >
+                          <SelectTrigger className="h-8 text-sm w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {roles.map((r) => (
+                              <SelectItem key={r.id} value={String(r.id)}>{r.nombre}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <Button
                         size="sm"
                         variant="outline"
                         disabled={
                           cambiarRol.isPending ||
-                          (!rolEditado || Number(rolEditado) === detalle.rol.id)
+                          (!rolEditado || Number(rolEditado) === detalleActual.rol.id)
                         }
                         onClick={() =>
-                          cambiarRol.mutate({ id: detalle.id, rolId: Number(rolEditado) })
+                          cambiarRol.mutate({ id: detalleActual.id, rolId: Number(rolEditado) })
                         }
                       >
                         {cambiarRol.isPending ? 'Guardando...' : 'Guardar'}
                       </Button>
                     </div>
                   ) : (
-                    <p className="font-medium mt-0.5">{detalle.rol.nombre}</p>
+                    <p className="font-medium mt-0.5">{detalleActual.rol.nombre}</p>
                   )}
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Estado</Label>
                   <div className="mt-0.5">
-                    <Badge variant={detalle.activo ? 'default' : 'destructive'}>
-                      {detalle.activo ? 'Activo' : 'Inactivo'}
+                    <Badge variant={detalleActual.activo ? 'default' : 'destructive'}>
+                      {detalleActual.activo ? 'Activo' : 'Inactivo'}
                     </Badge>
                   </div>
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Cuenta aprobada</Label>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <Badge variant={detalle.aprobado ? 'outline' : 'secondary'}
-                      className={detalle.aprobado ? 'text-green-600 border-green-300' : ''}>
-                      {detalle.aprobado ? 'Sí' : 'No'}
+                    <Badge variant={detalleActual.aprobado ? 'outline' : 'secondary'}
+                      className={detalleActual.aprobado ? 'text-green-600 border-green-300' : ''}>
+                      {detalleActual.aprobado ? 'Sí' : 'No'}
                     </Badge>
                     {esAdmin && (
                       <Button
                         size="sm"
                         variant={detalle.aprobado ? 'outline' : 'default'}
                         disabled={toggleAprobacion.isPending}
-                        onClick={() => toggleAprobacion.mutate({ id: detalle.id, aprobado: !detalle.aprobado })}
+                        onClick={() => toggleAprobacion.mutate({ id: detalleActual.id, aprobado: !detalleActual.aprobado })}
                       >
                         {toggleAprobacion.isPending
                           ? 'Guardando...'
-                          : detalle.aprobado ? 'Revocar' : 'Aprobar'}
+                          : detalleActual.aprobado ? 'Revocar' : 'Aprobar'}
                       </Button>
                     )}
                   </div>
@@ -415,20 +539,61 @@ export function TabUsuarios() {
                 <div>
                   <Label className="text-muted-foreground text-xs">Registrado</Label>
                   <p className="font-medium mt-0.5">
-                    {new Date(detalle.created_at).toLocaleDateString('es-AR', {
+                    {new Date(detalleActual.created_at).toLocaleDateString('es-AR', {
                       day: '2-digit', month: 'long', year: 'numeric',
                     })}
                   </p>
                 </div>
               </div>
 
-              {detalle.direcciones && detalle.direcciones.length > 0 && (
+              <div>
+                <Label className="text-muted-foreground text-xs">Dirección principal</Label>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  <Input
+                    value={formEdicion.calle}
+                    onChange={(e) => setFormEdicion((prev) => ({ ...prev, calle: e.target.value }))}
+                    placeholder="Calle y altura"
+                    className="h-8 col-span-2"
+                  />
+                  <Input
+                    value={formEdicion.piso_depto}
+                    onChange={(e) => setFormEdicion((prev) => ({ ...prev, piso_depto: e.target.value }))}
+                    placeholder="Piso / Depto"
+                    className="h-8"
+                  />
+                  <Input
+                    value={formEdicion.codigo_postal}
+                    onChange={(e) => setFormEdicion((prev) => ({ ...prev, codigo_postal: e.target.value }))}
+                    placeholder="Código postal"
+                    className="h-8"
+                  />
+                  <Input
+                    value={formEdicion.localidad}
+                    onChange={(e) => setFormEdicion((prev) => ({ ...prev, localidad: e.target.value }))}
+                    placeholder="Localidad"
+                    className="h-8"
+                  />
+                  <Input
+                    value={formEdicion.provincia}
+                    onChange={(e) => setFormEdicion((prev) => ({ ...prev, provincia: e.target.value }))}
+                    placeholder="Provincia"
+                    className="h-8"
+                  />
+                </div>
+                {detalleActual.direcciones && detalleActual.direcciones.length > 1 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Este formulario actualiza la dirección principal del cliente.
+                  </p>
+                )}
+              </div>
+
+              {detalleActual.direcciones && detalleActual.direcciones.length > 0 && (
                 <div>
                   <Label className="text-muted-foreground text-xs">
-                    Direcciones ({detalle.direcciones.length})
+                    Direcciones ({detalleActual.direcciones.length})
                   </Label>
                   <div className="mt-1 space-y-2">
-                    {detalle.direcciones.map((d) => (
+                    {detalleActual.direcciones.map((d) => (
                       <div key={d.id} className="text-sm border rounded-md p-3 bg-muted/40">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="font-medium">{d.alias ?? 'Dirección'}</span>
@@ -447,6 +612,12 @@ export function TabUsuarios() {
             </div>
           )}
           <DialogFooter>
+            <Button
+              onClick={() => guardarDatosCliente.mutate()}
+              disabled={!puedeGuardarCliente || guardarDatosCliente.isPending}
+            >
+              {guardarDatosCliente.isPending ? 'Guardando datos...' : 'Guardar datos'}
+            </Button>
             <Button variant="outline" onClick={() => setDetalle(null)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>

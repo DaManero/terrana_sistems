@@ -36,13 +36,31 @@ export const CANAL_LABELS: Record<CanalVenta, string> = {
   whatsapp: 'WhatsApp',
 };
 
+export interface MetodoPagoOption {
+  value: string;
+  label: string;
+}
+
+export const METODOS_PAGO_OPTIONS: MetodoPagoOption[] = [
+  { value: 'En Destino', label: 'En Destino' },
+  { value: 'efectivo', label: 'Efectivo' },
+  { value: 'transferencia', label: 'Transferencia' },
+  { value: 'mercadopago', label: 'Mercado Pago' },
+  { value: 'tarjeta_debito', label: 'Tarjeta de débito' },
+  { value: 'tarjeta_credito', label: 'Tarjeta de crédito' },
+  { value: 'cheque', label: 'Cheque' },
+  { value: 'cuenta_corriente', label: 'Cuenta corriente' },
+  // Compatibilidad con ventas historicas que guardaron un valor genérico.
+  { value: 'tarjeta', label: 'Tarjeta' },
+];
+
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
 /** Clases Tailwind para el badge de estado (inline span con border) */
 export function estadoClase(estado: string): string {
   const map: Record<string, string> = {
     pendiente: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    confirmado: 'bg-blue-100 text-blue-800 border-blue-200',
+    confirmado: 'bg-cyan-100 text-cyan-800 border-cyan-200',
     en_preparacion: 'bg-orange-100 text-orange-800 border-orange-200',
     despachado: 'bg-purple-100 text-purple-800 border-purple-200',
     entregado: 'bg-green-100 text-green-800 border-green-200',
@@ -117,12 +135,11 @@ export interface VentaItem {
 export interface DireccionVenta {
   id: number;
   calle?: string;
-  numero?: string;
-  piso?: string;
-  departamento?: string;
-  ciudad?: string;
+  piso_depto?: string;
+  localidad?: string;
   provincia?: string;
   codigo_postal?: string;
+  pais?: string;
 }
 
 export interface VentaDetalle {
