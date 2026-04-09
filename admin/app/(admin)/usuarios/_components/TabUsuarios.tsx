@@ -525,7 +525,7 @@ export function TabUsuarios() {
                     {esAdmin && (
                       <Button
                         size="sm"
-                        variant={detalle.aprobado ? 'outline' : 'default'}
+                        variant={detalleActual.aprobado ? 'outline' : 'default'}
                         disabled={toggleAprobacion.isPending}
                         onClick={() => toggleAprobacion.mutate({ id: detalleActual.id, aprobado: !detalleActual.aprobado })}
                       >
