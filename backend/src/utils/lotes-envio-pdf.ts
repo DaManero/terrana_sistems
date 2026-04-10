@@ -5,6 +5,7 @@ interface LotePdfVenta {
   total?: number | string;
   pago_estado?: string | null;
   metodo_pago?: string | null;
+  notas?: string | null;
   cliente: { nombre: string; apellido: string } | null;
   guest_nombre?: string | null;
   direccion?: {
@@ -97,6 +98,27 @@ function drawSectionLabel(doc: PDFKit.PDFDocument, text: string, x: number, y: n
   doc.restore();
 }
 
+function drawInlineField(
+  doc: PDFKit.PDFDocument,
+  label: string,
+  value: string,
+  x: number,
+  y: number,
+  innerWidth: number,
+  opts?: { labelColor?: string; valueColor?: string; fontSize?: number; valueBold?: boolean },
+) {
+  const fs = opts?.fontSize ?? 8.5;
+  const lc = opts?.labelColor ?? '#6B6252';
+  const vc = opts?.valueColor ?? '#1F1B16';
+  doc.font('Helvetica-Bold').fontSize(fs).fillColor(lc).text(`${label}: `, x, y, {
+    continued: true,
+    width: innerWidth,
+  });
+  doc.font(opts?.valueBold ? 'Helvetica-Bold' : 'Helvetica').fillColor(vc).text(value, {
+    width: innerWidth,
+  });
+}
+
 function drawEtiqueta(
   doc: PDFKit.PDFDocument,
   lote: LotePdfData,
@@ -121,6 +143,7 @@ function drawEtiqueta(
   const innerY = y + pad;
   const innerWidth = width - pad * 2;
 
+  // — Encabezado —
   doc.fillColor('#2F2A22').fontSize(10).font('Helvetica-Bold').text('Terrana', innerX, innerY);
   doc.fontSize(7.5).font('Helvetica').fillColor('#8B816F').text(`Lote ${lote.numero}`, innerX, innerY + 12, {
     width: innerWidth,
@@ -130,58 +153,63 @@ function drawEtiqueta(
     align: 'right',
   });
 
-  let cursorY = innerY + 28;
+  // Separador
+  const sepY = innerY + 26;
+  doc.moveTo(innerX, sepY).lineTo(innerX + innerWidth, sepY).lineWidth(0.5).strokeColor('#DDD6C8').stroke();
 
-  drawSectionLabel(doc, 'Cliente', innerX, cursorY, 54);
-  doc.font('Helvetica-Bold').fontSize(10).fillColor('#1F1B16').text(cliente, innerX, cursorY + 20, {
-    width: innerWidth,
-  });
+  let cursorY = sepY + 8;
 
-  cursorY += 36;
-  drawSectionLabel(doc, 'Envio', innerX, cursorY, 50);
-  doc.font('Helvetica').fontSize(8.2).fillColor('#6B6252').text(lote.metodo_envio.nombre, innerX, cursorY + 19, {
-    width: innerWidth,
-  });
-  doc.font('Helvetica').fontSize(8.4).fillColor('#1F1B16').text(direccion, innerX, cursorY + 31, {
-    width: innerWidth,
-    height: 40,
-    ellipsis: true,
-  });
+  // — Campos en línea —
+  drawInlineField(doc, 'Cliente', cliente, innerX, cursorY, innerWidth, { fontSize: 10, valueBold: true });
+  cursorY = doc.y + 4;
 
-  cursorY += 60;
+  drawInlineField(doc, 'Envio', lote.metodo_envio.nombre, innerX, cursorY, innerWidth, { fontSize: 9.5 });
+  cursorY = doc.y + 2;
+
+  drawInlineField(doc, 'Direccion', direccion, innerX, cursorY, innerWidth, { fontSize: 9.5 });
+  cursorY = doc.y + 4;
 
   if (esPagoEnDestino(venta)) {
-    drawSectionLabel(doc, 'Cobro', innerX, cursorY, 50);
-    doc.font('Helvetica-Bold').fontSize(8.4).fillColor('#8A6A00').text('Pago en destino', innerX, cursorY + 19, {
-      width: innerWidth,
-    });
-    doc.font('Helvetica-Bold').fontSize(9.2).fillColor('#1F1B16').text(`Cobrar: ${formatMonto(venta.total)}`, innerX, cursorY + 31, {
-      width: innerWidth,
-    });
-    cursorY += 44;
+    drawInlineField(
+      doc,
+      'Cobro',
+      `Pago en destino (${formatMonto(venta.total)})`,
+      innerX,
+      cursorY,
+      innerWidth,
+      { fontSize: 9.5, labelColor: '#8A6A00', valueColor: '#8A6A00', valueBold: true },
+    );
+    cursorY = doc.y + 4;
   }
 
-  drawSectionLabel(doc, 'Productos', innerX, cursorY, 62);
+  // — Notas (debajo de Cobro) —
+  if (venta.notas && venta.notas.trim()) {
+    drawInlineField(doc, 'Notas', venta.notas.trim(), innerX, cursorY, innerWidth, { fontSize: 9.5 });
+    cursorY = doc.y + 4;
+  }
 
-  let productsY = cursorY + 21;
+  // Separador antes de productos
+  doc.moveTo(innerX, cursorY).lineTo(innerX + innerWidth, cursorY).lineWidth(0.4).strokeColor('#DDD6C8').stroke();
+  cursorY += 6;
+
+  // — Productos —
+  doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#6B6252').text('Productos:', innerX, cursorY, { width: innerWidth });
+  cursorY = doc.y + 2;
+
   if (venta.items.length === 0) {
-    doc.font('Helvetica').fontSize(8.2).fillColor('#8B816F').text('Sin productos', innerX, productsY, {
-      width: innerWidth,
-    });
+    doc.font('Helvetica').fontSize(9.2).fillColor('#8B816F').text('Sin productos', innerX, cursorY, { width: innerWidth });
+    cursorY = doc.y + 3;
   } else {
     venta.items.forEach((item) => {
-      if (productsY > y + height - 20) return;
-      doc.circle(innerX + 2, productsY + 5, 1.4).fill('#A08C22');
-      doc.font('Helvetica').fontSize(8.2).fillColor('#1F1B16').text(
+      if (cursorY > y + height - 18) return;
+      doc.circle(innerX + 2, cursorY + 5.5, 1.4).fill('#A08C22');
+      doc.font('Helvetica').fontSize(9.2).fillColor('#1F1B16').text(
         `${item.producto.nombre} x ${item.cantidad}`,
         innerX + 10,
-        productsY,
-        {
-          width: innerWidth - 10,
-          lineBreak: true,
-        }
+        cursorY,
+        { width: innerWidth - 10, lineBreak: true },
       );
-      productsY = doc.y + 3;
+      cursorY = doc.y + 2;
     });
   }
 
@@ -244,53 +272,118 @@ export function buildLoteEnvioPdf(lote: LotePdfData): PDFKit.PDFDocument {
   doc.info.Author = 'Terrana';
   doc.info.Subject = 'Lote de envio';
 
-  doc.fontSize(20).font('Helvetica-Bold').text('Lote de envio', { align: 'left' });
-  doc.moveDown(0.4);
-  doc.fontSize(11).font('Helvetica');
-  doc.text(`Numero de lote: ${lote.numero}`);
-  doc.text(`Metodo de envio: ${lote.metodo_envio.nombre}`);
-  doc.text(`Fecha de generacion: ${new Date(lote.created_at).toLocaleString('es-AR')}`);
-  doc.text(`Generado por: ${lote.generador ? `${lote.generador.nombre} ${lote.generador.apellido}` : '—'}`);
-  doc.text(`Cantidad de pedidos: ${lote.ventas.length}`);
+  const marginL = doc.page.margins.left;
+  const marginR = doc.page.margins.right;
+  const contentW = doc.page.width - marginL - marginR;
 
-  doc.moveDown(0.8);
-  doc.fontSize(9).fillColor('#666666').text('Documento operativo para preparacion de pedidos y reparto.', { align: 'left' });
-  doc.fillColor('#000000');
+  // ── Encabezado principal ──────────────────────────────────────────────────
+  doc.rect(marginL, 40, contentW, 52).fill('#2F2A22');
+  doc.fillColor('#F6F2E8').fontSize(18).font('Helvetica-Bold')
+    .text('Lote de envio', marginL + 14, 52, { width: contentW - 28 });
+  doc.fillColor('#A08C6A').fontSize(9).font('Helvetica')
+    .text('Documento operativo para preparacion de pedidos y reparto.', marginL + 14, 74, { width: contentW - 28 });
+
+  // Bloque de metadatos
+  const metaY = 40 + 52 + 10;
+  doc.rect(marginL, metaY, contentW, 36).fill('#F6F2E8');
+
+  const col1 = marginL + 14;
+  const col2 = marginL + contentW * 0.38;
+  const col3 = marginL + contentW * 0.68;
+
+  doc.fillColor('#6B6252').fontSize(7.5).font('Helvetica-Bold')
+    .text('LOTE', col1, metaY + 6).text('METODO DE ENVIO', col2, metaY + 6).text('GENERADO POR', col3, metaY + 6);
+  doc.fillColor('#1F1B16').fontSize(9.5).font('Helvetica-Bold')
+    .text(lote.numero, col1, metaY + 17, { width: col2 - col1 - 8 })
+  doc.font('Helvetica')
+    .text(lote.metodo_envio.nombre, col2, metaY + 17, { width: col3 - col2 - 8 })
+    .text(lote.generador ? `${lote.generador.nombre} ${lote.generador.apellido}` : '—', col3, metaY + 17, { width: contentW - (col3 - marginL) - 14 });
+
+  // Fila: fecha + cantidad
+  const meta2Y = metaY + 36 + 6;
+  doc.fillColor('#888').fontSize(8).font('Helvetica')
+    .text(
+      `Generado el ${new Date(lote.created_at).toLocaleString('es-AR')}   ·   ${lote.ventas.length} pedido${lote.ventas.length !== 1 ? 's' : ''}`,
+      marginL, meta2Y, { width: contentW, align: 'right' },
+    );
+
+  doc.moveDown(0.2);
+
+  // ── Pedidos ───────────────────────────────────────────────────────────────
+  const leftColW = Math.floor(contentW * 0.54);
+  const rightColW = contentW - leftColW - 16;
+  const rightColX = marginL + leftColW + 16;
 
   lote.ventas.forEach((venta, index) => {
-    ensureSpace(doc, 150);
+    ensureSpace(doc, 120);
 
-    if (index > 0) {
-      doc.moveDown(0.5);
-      doc.moveTo(doc.page.margins.left, doc.y)
-        .lineTo(doc.page.width - doc.page.margins.right, doc.y)
-        .strokeColor('#D9D4C7')
-        .stroke();
-      doc.moveDown(0.6);
-    }
+    const startY = doc.y + (index === 0 ? 10 : 6);
+
+    // Cabecera del pedido
+    doc.rect(marginL, startY, contentW, 22).fill('#EDE8DC');
+    doc.fillColor('#2F2A22').fontSize(11).font('Helvetica-Bold')
+      .text(`Pedido ${venta.numero_pedido}`, marginL + 10, startY + 5, { width: leftColW - 10, continued: true });
+    doc.fillColor('#8B816F').fontSize(8.5).font('Helvetica')
+      .text(`  ${index + 1} / ${lote.ventas.length}`, { continued: false });
+
+    const bodyY = startY + 28;
 
     const cliente = venta.cliente
       ? `${venta.cliente.nombre} ${venta.cliente.apellido}`
       : (venta.guest_nombre ?? 'Invitado');
 
-    doc.fontSize(13).font('Helvetica-Bold').text(`Pedido ${venta.numero_pedido}`);
-    doc.moveDown(0.2);
-    doc.fontSize(10).font('Helvetica');
-    doc.text(`Cliente: ${cliente}`);
-    doc.text(`Direccion: ${formatDireccion(venta)}`);
-    if (esPagoEnDestino(venta)) {
-      doc.fillColor('#8A6A00').font('Helvetica-Bold').text('Pago en destino');
-      doc.fillColor('#000000').font('Helvetica-Bold').text(`Importe a cobrar: ${formatMonto(venta.total)}`);
-      doc.font('Helvetica');
-    }
-    doc.moveDown(0.3);
-    doc.font('Helvetica-Bold').text('Productos:');
-    doc.font('Helvetica');
+    // — Columna izquierda: datos del cliente —
+    let ly = bodyY;
 
-    venta.items.forEach((item) => {
-      ensureSpace(doc, 18);
-      doc.text(`- ${item.producto.nombre} x ${item.cantidad}`, { indent: 10 });
-    });
+    doc.fillColor('#6B6252').fontSize(7.5).font('Helvetica-Bold').text('CLIENTE', marginL, ly, { width: leftColW });
+    ly += 11;
+    doc.fillColor('#1F1B16').fontSize(10).font('Helvetica-Bold').text(cliente, marginL, ly, { width: leftColW });
+    ly = doc.y + 5;
+
+    doc.fillColor('#6B6252').fontSize(7.5).font('Helvetica-Bold').text('DIRECCION', marginL, ly, { width: leftColW });
+    ly += 11;
+    doc.fillColor('#3A3530').fontSize(9).font('Helvetica').text(formatDireccion(venta), marginL, ly, { width: leftColW });
+    ly = doc.y + 5;
+
+    if (esPagoEnDestino(venta)) {
+      doc.rect(marginL, ly, leftColW, 20).fill('#FFF8E7');
+      doc.fillColor('#8A6A00').fontSize(8).font('Helvetica-Bold')
+        .text('COBRO EN DESTINO', marginL + 6, ly + 3, { width: leftColW - 80, continued: true });
+      doc.fontSize(9.5).text(`  ${formatMonto(venta.total)}`, { continued: false });
+      ly = ly + 22;
+    }
+
+    if (venta.notas && venta.notas.trim()) {
+      doc.fillColor('#6B6252').fontSize(7.5).font('Helvetica-Bold').text('NOTAS', marginL, ly + 2, { width: leftColW });
+      ly += 13;
+      doc.fillColor('#555555').fontSize(9).font('Helvetica').text(venta.notas.trim(), marginL, ly, { width: leftColW });
+      ly = doc.y + 4;
+    }
+
+    // — Columna derecha: productos —
+    doc.moveTo(rightColX - 8, bodyY).lineTo(rightColX - 8, ly + 4).lineWidth(0.5).strokeColor('#D9D4C7').stroke();
+
+    let ry = bodyY;
+    doc.fillColor('#6B6252').fontSize(7.5).font('Helvetica-Bold').text('PRODUCTOS', rightColX, ry, { width: rightColW });
+    ry += 11;
+
+    if (venta.items.length === 0) {
+      doc.fillColor('#8B816F').fontSize(9).font('Helvetica').text('Sin productos', rightColX, ry, { width: rightColW });
+    } else {
+      venta.items.forEach((item) => {
+        ensureSpace(doc, 16);
+        doc.circle(rightColX + 3, ry + 5.5, 1.6).fill('#A08C22');
+        doc.fillColor('#1F1B16').fontSize(9.5).font('Helvetica')
+          .text(item.producto.nombre, rightColX + 12, ry, { width: rightColW - 12, continued: true });
+        doc.font('Helvetica-Bold').text(`  x${item.cantidad}`, { continued: false });
+        ry = doc.y + 2;
+      });
+    }
+
+    // Separador de cierre
+    const closeY = Math.max(ly, ry) + 8;
+    doc.moveTo(marginL, closeY).lineTo(marginL + contentW, closeY).lineWidth(0.8).strokeColor('#C8C0B0').stroke();
+    doc.y = closeY + 6;
   });
 
   drawEtiquetasSection(doc, lote);
