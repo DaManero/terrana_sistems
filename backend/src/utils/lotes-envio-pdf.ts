@@ -6,8 +6,9 @@ interface LotePdfVenta {
   pago_estado?: string | null;
   metodo_pago?: string | null;
   notas?: string | null;
-  cliente: { nombre: string; apellido: string } | null;
+  cliente: { nombre: string; apellido: string; cel?: string | null } | null;
   guest_nombre?: string | null;
+  guest_telefono?: string | null;
   direccion?: {
     calle?: string | null;
     piso_depto?: string | null;
@@ -131,6 +132,7 @@ function drawEtiqueta(
   const cliente = venta.cliente
     ? `${venta.cliente.nombre} ${venta.cliente.apellido}`
     : (venta.guest_nombre ?? 'Invitado');
+  const telefono = venta.cliente?.cel || venta.guest_telefono || null;
   const direccion = formatDireccion(venta);
 
   drawCutMarks(doc, x, y, width, height);
@@ -144,29 +146,34 @@ function drawEtiqueta(
   const innerWidth = width - pad * 2;
 
   // — Encabezado —
-  doc.fillColor('#2F2A22').fontSize(10).font('Helvetica-Bold').text('Terrana', innerX, innerY);
-  doc.fontSize(7.5).font('Helvetica').fillColor('#8B816F').text(`Lote ${lote.numero}`, innerX, innerY + 12, {
+  doc.fillColor('#2F2A22').fontSize(11).font('Helvetica-Bold').text('Terrana', innerX, innerY);
+  doc.fontSize(8.5).font('Helvetica').fillColor('#8B816F').text(`Lote ${lote.numero}`, innerX, innerY + 14, {
     width: innerWidth,
   });
-  doc.fontSize(9).font('Helvetica').fillColor('#5F5648').text(venta.numero_pedido, x + width - pad - 90, innerY, {
+  doc.fontSize(10).font('Helvetica').fillColor('#5F5648').text(venta.numero_pedido, x + width - pad - 90, innerY, {
     width: 90,
     align: 'right',
   });
 
   // Separador
-  const sepY = innerY + 26;
+  const sepY = innerY + 28;
   doc.moveTo(innerX, sepY).lineTo(innerX + innerWidth, sepY).lineWidth(0.5).strokeColor('#DDD6C8').stroke();
 
   let cursorY = sepY + 8;
 
   // — Campos en línea —
-  drawInlineField(doc, 'Cliente', cliente, innerX, cursorY, innerWidth, { fontSize: 10, valueBold: true });
-  cursorY = doc.y + 4;
+  drawInlineField(doc, 'Cliente', cliente, innerX, cursorY, innerWidth, { fontSize: 11, valueBold: true });
+  cursorY = doc.y + 3;
 
-  drawInlineField(doc, 'Envio', lote.metodo_envio.nombre, innerX, cursorY, innerWidth, { fontSize: 9.5 });
+  if (telefono) {
+    drawInlineField(doc, 'Telefono', telefono, innerX, cursorY, innerWidth, { fontSize: 10.5 });
+    cursorY = doc.y + 3;
+  }
+
+  drawInlineField(doc, 'Envio', lote.metodo_envio.nombre, innerX, cursorY, innerWidth, { fontSize: 10.5 });
   cursorY = doc.y + 2;
 
-  drawInlineField(doc, 'Direccion', direccion, innerX, cursorY, innerWidth, { fontSize: 9.5 });
+  drawInlineField(doc, 'Direccion', direccion, innerX, cursorY, innerWidth, { fontSize: 10.5 });
   cursorY = doc.y + 4;
 
   if (esPagoEnDestino(venta)) {
@@ -177,14 +184,14 @@ function drawEtiqueta(
       innerX,
       cursorY,
       innerWidth,
-      { fontSize: 9.5, labelColor: '#8A6A00', valueColor: '#8A6A00', valueBold: true },
+      { fontSize: 10.5, labelColor: '#8A6A00', valueColor: '#8A6A00', valueBold: true },
     );
     cursorY = doc.y + 4;
   }
 
   // — Notas (debajo de Cobro) —
   if (venta.notas && venta.notas.trim()) {
-    drawInlineField(doc, 'Notas', venta.notas.trim(), innerX, cursorY, innerWidth, { fontSize: 9.5 });
+    drawInlineField(doc, 'Notas', venta.notas.trim(), innerX, cursorY, innerWidth, { fontSize: 10.5 });
     cursorY = doc.y + 4;
   }
 
@@ -193,17 +200,17 @@ function drawEtiqueta(
   cursorY += 6;
 
   // — Productos —
-  doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#6B6252').text('Productos:', innerX, cursorY, { width: innerWidth });
+  doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#6B6252').text('Productos:', innerX, cursorY, { width: innerWidth });
   cursorY = doc.y + 2;
 
   if (venta.items.length === 0) {
-    doc.font('Helvetica').fontSize(9.2).fillColor('#8B816F').text('Sin productos', innerX, cursorY, { width: innerWidth });
+    doc.font('Helvetica').fontSize(10.2).fillColor('#8B816F').text('Sin productos', innerX, cursorY, { width: innerWidth });
     cursorY = doc.y + 3;
   } else {
     venta.items.forEach((item) => {
       if (cursorY > y + height - 18) return;
       doc.circle(innerX + 2, cursorY + 5.5, 1.4).fill('#A08C22');
-      doc.font('Helvetica').fontSize(9.2).fillColor('#1F1B16').text(
+      doc.font('Helvetica').fontSize(10.2).fillColor('#1F1B16').text(
         `${item.producto.nombre} x ${item.cantidad}`,
         innerX + 10,
         cursorY,
@@ -331,32 +338,40 @@ export function buildLoteEnvioPdf(lote: LotePdfData): PDFKit.PDFDocument {
     const cliente = venta.cliente
       ? `${venta.cliente.nombre} ${venta.cliente.apellido}`
       : (venta.guest_nombre ?? 'Invitado');
+    const telefono = venta.cliente?.cel || venta.guest_telefono || null;
 
     // — Columna izquierda: datos del cliente —
     let ly = bodyY;
 
-    doc.fillColor('#6B6252').fontSize(7.5).font('Helvetica-Bold').text('CLIENTE', marginL, ly, { width: leftColW });
-    ly += 11;
-    doc.fillColor('#1F1B16').fontSize(10).font('Helvetica-Bold').text(cliente, marginL, ly, { width: leftColW });
-    ly = doc.y + 5;
+    doc.fillColor('#6B6252').fontSize(8).font('Helvetica-Bold').text('CLIENTE', marginL, ly, { width: leftColW });
+    ly += 12;
+    doc.fillColor('#1F1B16').fontSize(11).font('Helvetica-Bold').text(cliente, marginL, ly, { width: leftColW });
+    ly = doc.y + 4;
 
-    doc.fillColor('#6B6252').fontSize(7.5).font('Helvetica-Bold').text('DIRECCION', marginL, ly, { width: leftColW });
-    ly += 11;
-    doc.fillColor('#3A3530').fontSize(9).font('Helvetica').text(formatDireccion(venta), marginL, ly, { width: leftColW });
+    if (telefono) {
+      doc.fillColor('#6B6252').fontSize(8).font('Helvetica-Bold').text('TELEFONO', marginL, ly, { width: leftColW });
+      ly += 12;
+      doc.fillColor('#3A3530').fontSize(10).font('Helvetica').text(telefono, marginL, ly, { width: leftColW });
+      ly = doc.y + 4;
+    }
+
+    doc.fillColor('#6B6252').fontSize(8).font('Helvetica-Bold').text('DIRECCION', marginL, ly, { width: leftColW });
+    ly += 12;
+    doc.fillColor('#3A3530').fontSize(10).font('Helvetica').text(formatDireccion(venta), marginL, ly, { width: leftColW });
     ly = doc.y + 5;
 
     if (esPagoEnDestino(venta)) {
-      doc.rect(marginL, ly, leftColW, 20).fill('#FFF8E7');
-      doc.fillColor('#8A6A00').fontSize(8).font('Helvetica-Bold')
-        .text('COBRO EN DESTINO', marginL + 6, ly + 3, { width: leftColW - 80, continued: true });
-      doc.fontSize(9.5).text(`  ${formatMonto(venta.total)}`, { continued: false });
-      ly = ly + 22;
+      doc.rect(marginL, ly, leftColW, 22).fill('#FFF8E7');
+      doc.fillColor('#8A6A00').fontSize(8.5).font('Helvetica-Bold')
+        .text('COBRO EN DESTINO', marginL + 6, ly + 4, { width: leftColW - 80, continued: true });
+      doc.fontSize(10.5).text(`  ${formatMonto(venta.total)}`, { continued: false });
+      ly = ly + 24;
     }
 
     if (venta.notas && venta.notas.trim()) {
-      doc.fillColor('#6B6252').fontSize(7.5).font('Helvetica-Bold').text('NOTAS', marginL, ly + 2, { width: leftColW });
-      ly += 13;
-      doc.fillColor('#555555').fontSize(9).font('Helvetica').text(venta.notas.trim(), marginL, ly, { width: leftColW });
+      doc.fillColor('#6B6252').fontSize(8).font('Helvetica-Bold').text('NOTAS', marginL, ly + 2, { width: leftColW });
+      ly += 14;
+      doc.fillColor('#555555').fontSize(10).font('Helvetica').text(venta.notas.trim(), marginL, ly, { width: leftColW });
       ly = doc.y + 4;
     }
 
@@ -364,16 +379,16 @@ export function buildLoteEnvioPdf(lote: LotePdfData): PDFKit.PDFDocument {
     doc.moveTo(rightColX - 8, bodyY).lineTo(rightColX - 8, ly + 4).lineWidth(0.5).strokeColor('#D9D4C7').stroke();
 
     let ry = bodyY;
-    doc.fillColor('#6B6252').fontSize(7.5).font('Helvetica-Bold').text('PRODUCTOS', rightColX, ry, { width: rightColW });
-    ry += 11;
+    doc.fillColor('#6B6252').fontSize(8).font('Helvetica-Bold').text('PRODUCTOS', rightColX, ry, { width: rightColW });
+    ry += 12;
 
     if (venta.items.length === 0) {
-      doc.fillColor('#8B816F').fontSize(9).font('Helvetica').text('Sin productos', rightColX, ry, { width: rightColW });
+      doc.fillColor('#8B816F').fontSize(10).font('Helvetica').text('Sin productos', rightColX, ry, { width: rightColW });
     } else {
       venta.items.forEach((item) => {
         ensureSpace(doc, 16);
         doc.circle(rightColX + 3, ry + 5.5, 1.6).fill('#A08C22');
-        doc.fillColor('#1F1B16').fontSize(9.5).font('Helvetica')
+        doc.fillColor('#1F1B16').fontSize(10.5).font('Helvetica')
           .text(item.producto.nombre, rightColX + 12, ry, { width: rightColW - 12, continued: true });
         doc.font('Helvetica-Bold').text(`  x${item.cantidad}`, { continued: false });
         ry = doc.y + 2;

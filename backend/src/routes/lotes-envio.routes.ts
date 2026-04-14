@@ -27,7 +27,7 @@ async function obtenerLoteCompleto(id: number) {
       generador: { select: { id: true, nombre: true, apellido: true } },
       ventas: {
         include: {
-          cliente: { select: { id: true, nombre: true, apellido: true, email: true } },
+          cliente: { select: { id: true, nombre: true, apellido: true, email: true, cel: true } },
           direccion: true,
           items: {
             include: {
