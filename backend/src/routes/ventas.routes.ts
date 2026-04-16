@@ -14,6 +14,7 @@ router.post('/', autenticarOpcional, async (req: Request, res: Response, next: N
     const datos = {
       ...req.body,
       cliente_id: req.body.cliente_id ?? req.usuario?.id,
+      permitir_descuento_manual: ['Admin', 'Operador'].includes(req.usuario?.rol ?? ''),
     };
     const venta = await ventasService.crear(datos);
     res.status(201).json(venta);

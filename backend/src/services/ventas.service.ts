@@ -27,10 +27,12 @@ interface DatosCrearVenta {
   direccion_id?: number;
   domicilio_envio?: string;
   codigo_descuento_id?: number;
+  descuento_manual?: number;
   costo_envio_manual?: number;
   notas?: string;
   creado_por?: number;
   metodo_pago?: string;
+  permitir_descuento_manual?: boolean;
 }
 
 async function obtenerUltimoMovimientoStockVenta(
@@ -177,7 +179,7 @@ export async function crear(datos: DatosCrearVenta) {
       };
     });
 
-    // 2. Aplicar código de descuento si corresponde
+    // 2. Aplicar descuentos
     let descuento = new Prisma.Decimal(0);
 
     if (datos.codigo_descuento_id) {
@@ -211,6 +213,23 @@ export async function crear(datos: DatosCrearVenta) {
         where: { id: codigo.id },
         data: { usos_actuales: { increment: 1 } },
       });
+    }
+
+    if (datos.descuento_manual !== undefined && datos.descuento_manual !== null) {
+      if (!datos.permitir_descuento_manual) {
+        throw new AppError('No autorizado para aplicar descuento manual', 403);
+      }
+
+      const descuentoManual = Number(datos.descuento_manual);
+      if (Number.isNaN(descuentoManual) || descuentoManual < 0) {
+        throw new AppError('Descuento manual invalido', 400);
+      }
+
+      descuento = descuento.add(new Prisma.Decimal(descuentoManual));
+    }
+
+    if (descuento.gt(subtotal)) {
+      descuento = subtotal;
     }
 
     // 3. Costo de envío
