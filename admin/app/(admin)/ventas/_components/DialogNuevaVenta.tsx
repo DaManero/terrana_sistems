@@ -132,6 +132,7 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
   const [codigoInput, setCodigoInput] = useState('');
   const [codigoValidado, setCodigoValidado] = useState<CodigoValidado | null>(null);
   const [validandoCodigo, setValidandoCodigo] = useState(false);
+  const [descuentoManualInput, setDescuentoManualInput] = useState('');
 
   // Extras
   const [notas, setNotas] = useState('');
@@ -190,7 +191,13 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
       : Number(codigoValidado.valor)
     : 0;
 
-  const subtotalConDesc = subtotal - descuentoMonto;
+  const descuentoManual = descuentoManualInput !== ''
+    ? Math.max(0, Number(descuentoManualInput) || 0)
+    : 0;
+
+  const descuentoTotal = descuentoMonto + descuentoManual;
+
+  const subtotalConDesc = Math.max(0, subtotal - descuentoTotal);
 
   const costoEnvioCalculado = metodoEnvioSel
     ? metodoEnvioSel.gratis_desde != null &&
@@ -224,6 +231,7 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
     setDomicilioEnvio('');
     setCodigoInput('');
     setCodigoValidado(null);
+    setDescuentoManualInput('');
     setNotas('');
   }
 
@@ -308,6 +316,13 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
         }
       }
 
+      if (descuentoManualInput !== '') {
+        const descuentoManual = Number(descuentoManualInput);
+        if (Number.isNaN(descuentoManual) || descuentoManual < 0) {
+          throw new Error('Descuento manual invalido');
+        }
+      }
+
       let usuarioId: number | undefined;
       if (typeof window !== 'undefined') {
         try {
@@ -330,6 +345,7 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
           ? { domicilio_envio: domicilioEnvio }
           : {}),
         ...(codigoValidado && { codigo_descuento_id: codigoValidado.id }),
+        ...(descuentoManualInput !== '' && { descuento_manual: Number(descuentoManualInput) }),
         ...(costoEnvioManual !== '' && { costo_envio_manual: Number(costoEnvioManual) }),
         ...(usuarioId && { creado_por: usuarioId }),
       };
@@ -650,10 +666,28 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
                     <span className="text-muted-foreground">Subtotal</span>
                     <span>{fmt(subtotal)}</span>
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Descuento manual ($)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0"
+                      value={descuentoManualInput}
+                      onChange={(e) => setDescuentoManualInput(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
                   {descuentoMonto > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Descuento{codigoValidado ? ` (${codigoValidado.codigo})` : ''}</span>
                       <span>- {fmt(descuentoMonto)}</span>
+                    </div>
+                  )}
+                  {descuentoManual > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Descuento manual</span>
+                      <span>- {fmt(descuentoManual)}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
