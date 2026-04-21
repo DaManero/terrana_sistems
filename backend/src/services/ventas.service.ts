@@ -462,6 +462,8 @@ interface DatosEditarVenta {
   estado?: string;
   pago_estado?: string;
   metodo_pago?: string;
+  metodo_envio_id?: number | null;
+  costo_envio_manual?: number;
   notas?: string;
   items?: { producto_id: number; cantidad: number }[];
 }
@@ -475,6 +477,9 @@ export async function editarVenta(id: number, datos: DatosEditarVenta, usuarioId
     if (!venta) throw new AppError('Venta no encontrada', 404);
 
     const updateData: Prisma.VentaUpdateInput = {};
+    let subtotalParaTotal = venta.subtotal;
+    let costoEnvioParaTotal = venta.costo_envio;
+    let debeRecalcularTotal = false;
 
     if (datos.estado !== undefined) updateData.estado = datos.estado;
     if (datos.pago_estado !== undefined) updateData.pago_estado = datos.pago_estado;
@@ -561,8 +566,51 @@ export async function editarVenta(id: number, datos: DatosEditarVenta, usuarioId
       await tx.ventaItem.deleteMany({ where: { venta_id: id } });
       await tx.ventaItem.createMany({ data: itemsConPrecio });
 
-      const nuevoTotal = subtotal.sub(venta.descuento).add(venta.costo_envio);
       updateData.subtotal = subtotal;
+      subtotalParaTotal = subtotal;
+      costoEnvioParaTotal = venta.costo_envio;
+      debeRecalcularTotal = true;
+    }
+
+    if (datos.metodo_envio_id !== undefined) {
+      if (datos.metodo_envio_id === null) {
+        updateData.metodo_envio = { disconnect: true };
+        costoEnvioParaTotal = new Prisma.Decimal(0);
+      } else {
+        const metodoEnvio = await tx.metodoEnvio.findUnique({
+          where: { id: datos.metodo_envio_id },
+        });
+
+        if (!metodoEnvio || !metodoEnvio.activo) {
+          throw new AppError('Método de envío no disponible', 400);
+        }
+
+        const subtotalConDescuento = subtotalParaTotal.sub(venta.descuento);
+        const costoCalculado = metodoEnvio.gratis_desde && subtotalConDescuento.gte(metodoEnvio.gratis_desde)
+          ? new Prisma.Decimal(0)
+          : metodoEnvio.costo;
+
+        updateData.metodo_envio = { connect: { id: datos.metodo_envio_id } };
+        costoEnvioParaTotal = costoCalculado;
+      }
+
+      updateData.costo_envio = costoEnvioParaTotal;
+      debeRecalcularTotal = true;
+    }
+
+    if (datos.costo_envio_manual !== undefined) {
+      const costoManual = Number(datos.costo_envio_manual);
+      if (Number.isNaN(costoManual) || costoManual < 0) {
+        throw new AppError('Costo de envio manual invalido', 400);
+      }
+
+      costoEnvioParaTotal = new Prisma.Decimal(costoManual);
+      updateData.costo_envio = costoEnvioParaTotal;
+      debeRecalcularTotal = true;
+    }
+
+    if (debeRecalcularTotal) {
+      const nuevoTotal = subtotalParaTotal.sub(venta.descuento).add(costoEnvioParaTotal);
       updateData.total = nuevoTotal.lt(0) ? new Prisma.Decimal(0) : nuevoTotal;
     }
 

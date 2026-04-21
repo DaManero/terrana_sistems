@@ -160,7 +160,7 @@ export interface VentaDetalle {
   metodo_pago?: string;
   pago_estado: EstadoPago;
   mp_payment_id?: string;
-  metodo_envio?: { nombre: string };
+  metodo_envio?: { id?: number; nombre: string };
   direccion?: DireccionVenta | null;
   domicilio_envio?: string;
   codigo_descuento?: { codigo: string } | null;

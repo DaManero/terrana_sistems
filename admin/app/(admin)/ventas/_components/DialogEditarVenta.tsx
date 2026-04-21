@@ -53,6 +53,14 @@ interface ItemEdit {
   precio_unitario: number;
 }
 
+interface MetodoEnvio {
+  id: number;
+  nombre: string;
+  costo: string | number;
+  gratis_desde?: string | number | null;
+  activo: boolean;
+}
+
 interface Props {
   venta: VentaDetalle;
   open: boolean;
@@ -71,6 +79,8 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
   const [estado, setEstado] = useState<EstadoVenta>(venta.estado);
   const [pagoEstado, setPagoEstado] = useState<EstadoPago>(venta.pago_estado);
   const [metodoPago, setMetodoPago] = useState(venta.metodo_pago ?? '');
+  const [metodoEnvioId, setMetodoEnvioId] = useState(venta.metodo_envio?.id ? String(venta.metodo_envio.id) : '');
+  const [costoEnvioManualInput, setCostoEnvioManualInput] = useState('');
   const [notas, setNotas] = useState(venta.notas ?? '');
 
   // Items
@@ -86,6 +96,8 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
       setEstado(venta.estado);
       setPagoEstado(venta.pago_estado);
       setMetodoPago(venta.metodo_pago ?? '');
+      setMetodoEnvioId(venta.metodo_envio?.id ? String(venta.metodo_envio.id) : '');
+      setCostoEnvioManualInput('');
       setNotas(venta.notas ?? '');
       setItems(
         venta.items.map((item) => ({
@@ -112,12 +124,28 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
     staleTime: 30000,
   });
 
+  const { data: metodosEnvio = [] } = useQuery<MetodoEnvio[]>({
+    queryKey: ['metodos-envio'],
+    queryFn: () => api.get('/metodos-envio').then((r) => r.data),
+    enabled: open,
+    staleTime: 60000,
+  });
+
   // ─── Cálculos ────────────────────────────────────────────────────────────────
 
   const subtotalNuevo = items.reduce((acc, item) => acc + item.precio_unitario * item.cantidad, 0);
   const descuento = Number(venta.descuento);
-  const costoEnvio = Number(venta.costo_envio);
-  const totalNuevo = Math.max(0, subtotalNuevo - descuento + costoEnvio);
+  const subtotalConDescuento = Math.max(0, subtotalNuevo - descuento);
+  const metodoEnvioSel = metodosEnvio.find((m) => m.id === Number(metodoEnvioId));
+  const costoEnvioManual =
+    costoEnvioManualInput !== '' ? Math.max(0, Number(costoEnvioManualInput) || 0) : null;
+  const costoEnvio = metodoEnvioSel
+    ? metodoEnvioSel.gratis_desde != null && subtotalConDescuento >= Number(metodoEnvioSel.gratis_desde)
+      ? 0
+      : Number(metodoEnvioSel.costo)
+    : Number(venta.costo_envio);
+  const costoEnvioFinal = costoEnvioManual ?? costoEnvio;
+  const totalNuevo = Math.max(0, subtotalNuevo - descuento + costoEnvioFinal);
 
   // ─── Handlers de items ───────────────────────────────────────────────────────
 
@@ -166,6 +194,8 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
         estado,
         pago_estado: pagoEstado,
         metodo_pago: metodoPago || null,
+        metodo_envio_id: metodoEnvioId ? Number(metodoEnvioId) : null,
+        ...(costoEnvioManual !== null ? { costo_envio_manual: costoEnvioManual } : {}),
         notas: notas.trim() || null,
         items: items.map((i) => ({ producto_id: i.producto_id, cantidad: i.cantidad })),
       });
@@ -273,46 +303,46 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
 
               <Separator />
 
-              {/* Notas */}
+              {/* Método de envío */}
               <div className="space-y-2">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                  Notas internas
+                  Método de envío
                 </Label>
-                <Textarea
-                  value={notas}
-                  onChange={(e) => setNotas(e.target.value)}
-                  placeholder="Observaciones o aclaraciones..."
-                  className="resize-none text-sm"
-                  rows={4}
+                <Select
+                  value={metodoEnvioId || '__none__'}
+                  onValueChange={(v) => setMetodoEnvioId(v === '__none__' ? '' : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sin especificar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Sin especificar —</SelectItem>
+                    {metodosEnvio.map((m) => (
+                      <SelectItem key={m.id} value={String(m.id)}>
+                        {m.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Separator />
+
+              {/* Costo de envío manual */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                  Costo de envío manual (opcional)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={costoEnvioManualInput}
+                  onChange={(e) => setCostoEnvioManualInput(e.target.value)}
+                  placeholder={String(Number(venta.costo_envio) || 0)}
                 />
               </div>
 
-              {/* Resumen financiero */}
-              <Separator />
-              <div className="space-y-1.5 text-sm">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">
-                  Resumen
-                </p>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span>{formatMonto(subtotalNuevo)}</span>
-                </div>
-                {descuento > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Descuento</span>
-                    <span>− {formatMonto(descuento)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Envío</span>
-                  <span>{costoEnvio === 0 ? 'Gratis' : formatMonto(costoEnvio)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-bold text-base">
-                  <span>Total</span>
-                  <span>{formatMonto(totalNuevo)}</span>
-                </div>
-              </div>
             </div>
 
             {/* ── Columna derecha: Productos ───────────────────────────── */}
@@ -456,6 +486,49 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
                   ))}
                 </div>
               )}
+
+              <Separator />
+
+              {/* Notas */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                  Notas internas
+                </Label>
+                <Textarea
+                  value={notas}
+                  onChange={(e) => setNotas(e.target.value)}
+                  placeholder="Observaciones o aclaraciones..."
+                  className="resize-none text-sm"
+                  rows={4}
+                />
+              </div>
+
+              {/* Resumen financiero */}
+              <Separator />
+              <div className="space-y-1.5 text-sm">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">
+                  Resumen
+                </p>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>{formatMonto(subtotalNuevo)}</span>
+                </div>
+                {descuento > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Descuento</span>
+                    <span>− {formatMonto(descuento)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Envío</span>
+                  <span>{costoEnvioFinal === 0 ? 'Gratis' : formatMonto(costoEnvioFinal)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-bold text-base">
+                  <span>Total</span>
+                  <span>{formatMonto(totalNuevo)}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
