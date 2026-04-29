@@ -30,6 +30,7 @@ interface DatosCrearVenta {
   descuento_manual?: number;
   costo_envio_manual?: number;
   notas?: string;
+  fecha_entrega?: Date | string;
   creado_por?: number;
   metodo_pago?: string;
   permitir_descuento_manual?: boolean;
@@ -278,6 +279,7 @@ export async function crear(datos: DatosCrearVenta) {
         domicilio_envio: datos.domicilio_envio,
         codigo_descuento_id: datos.codigo_descuento_id,
         notas: datos.notas,
+        fecha_entrega: datos.fecha_entrega ? new Date(datos.fecha_entrega) : null,
         creado_por: datos.creado_por,
         items: { createMany: { data: itemsConPrecio } },
       },
@@ -465,6 +467,7 @@ interface DatosEditarVenta {
   metodo_envio_id?: number | null;
   costo_envio_manual?: number;
   notas?: string;
+  fecha_entrega?: Date | string | null;
   items?: { producto_id: number; cantidad: number }[];
 }
 
@@ -485,6 +488,7 @@ export async function editarVenta(id: number, datos: DatosEditarVenta, usuarioId
     if (datos.pago_estado !== undefined) updateData.pago_estado = datos.pago_estado;
     if (datos.metodo_pago !== undefined) updateData.metodo_pago = datos.metodo_pago || null;
     if (datos.notas !== undefined) updateData.notas = datos.notas || null;
+    if (datos.fecha_entrega !== undefined) updateData.fecha_entrega = datos.fecha_entrega ? new Date(datos.fecha_entrega) : null;
 
     if (datos.items !== undefined) {
       if (datos.items.length === 0) {

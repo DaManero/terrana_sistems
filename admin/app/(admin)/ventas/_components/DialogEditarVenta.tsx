@@ -82,6 +82,9 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
   const [metodoEnvioId, setMetodoEnvioId] = useState(venta.metodo_envio?.id ? String(venta.metodo_envio.id) : '');
   const [costoEnvioManualInput, setCostoEnvioManualInput] = useState('');
   const [notas, setNotas] = useState(venta.notas ?? '');
+  const [fechaEntrega, setFechaEntrega] = useState(
+    venta.fecha_entrega ? new Date(venta.fecha_entrega).toISOString().slice(0, 10) : ''
+  );
 
   // Items
   const [items, setItems] = useState<ItemEdit[]>([]);
@@ -99,6 +102,7 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
       setMetodoEnvioId(venta.metodo_envio?.id ? String(venta.metodo_envio.id) : '');
       setCostoEnvioManualInput('');
       setNotas(venta.notas ?? '');
+      setFechaEntrega(venta.fecha_entrega ? new Date(venta.fecha_entrega).toISOString().slice(0, 10) : '');
       setItems(
         venta.items.map((item) => ({
           producto_id: item.producto.id,
@@ -197,6 +201,7 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
         metodo_envio_id: metodoEnvioId ? Number(metodoEnvioId) : null,
         ...(costoEnvioManual !== null ? { costo_envio_manual: costoEnvioManual } : {}),
         notas: notas.trim() || null,
+        fecha_entrega: fechaEntrega || null,
         items: items.map((i) => ({ producto_id: i.producto_id, cantidad: i.cantidad })),
       });
     },
@@ -488,6 +493,19 @@ export function DialogEditarVenta({ venta, open, onClose }: Props) {
               )}
 
               <Separator />
+
+              {/* Fecha de entrega */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                  Fecha de entrega
+                </Label>
+                <input
+                  type="date"
+                  value={fechaEntrega}
+                  onChange={(e) => setFechaEntrega(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
 
               {/* Notas */}
               <div className="space-y-2">

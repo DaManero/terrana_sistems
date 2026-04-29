@@ -38,12 +38,13 @@ export async function miPerfil(req: Request, res: Response, next: NextFunction):
 
 export async function actualizar(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { nombre, apellido, cel, email, direccion } = req.body;
+    const { nombre, apellido, cel, email, direccion, observaciones } = req.body;
     const usuario = await usersService.actualizar(Number(req.params.id), {
       nombre,
       apellido,
       cel,
       email,
+      observaciones,
       direccion,
     });
     res.json(usuario);

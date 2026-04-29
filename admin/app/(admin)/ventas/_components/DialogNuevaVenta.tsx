@@ -136,6 +136,9 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
 
   // Extras
   const [notas, setNotas] = useState('');
+  const [fechaEntrega, setFechaEntrega] = useState(
+    () => new Date().toISOString().slice(0, 10)
+  );
 
   // --- Queries ---
 
@@ -233,6 +236,7 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
     setCodigoValidado(null);
     setDescuentoManualInput('');
     setNotas('');
+    setFechaEntrega(new Date().toISOString().slice(0, 10));
   }
 
   function handleClose() {
@@ -338,6 +342,7 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
         items: items.map((i) => ({ producto_id: i.producto.id, cantidad: i.cantidad })),
         metodo_envio_id: Number(metodoEnvioId),
         ...(notas && { notas }),
+        fecha_entrega: fechaEntrega,
         ...(metodoPago && { metodo_pago: metodoPago }),
         ...(direccionId
           ? { direccion_id: Number(direccionId) }
@@ -839,6 +844,19 @@ export function DialogNuevaVenta({ open, onClose }: Props) {
               </div>
 
               <Separator />
+
+              {/* Fecha de entrega */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                  Fecha de entrega
+                </Label>
+                <input
+                  type="date"
+                  value={fechaEntrega}
+                  onChange={(e) => setFechaEntrega(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
 
               {/* Notas */}
               <div className="space-y-2">
