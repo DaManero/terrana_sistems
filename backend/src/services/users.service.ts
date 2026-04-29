@@ -17,6 +17,7 @@ export interface DatosActualizarUsuario {
   apellido?: string;
   cel?: string;
   email?: string | null;
+  observaciones?: string | null;
   direccion?: {
     id?: number;
     calle: string;
@@ -127,6 +128,7 @@ export async function actualizar(id: number, datos: DatosActualizarUsuario) {
         ...(datos.apellido !== undefined && { apellido: datos.apellido.trim() }),
         ...(datos.cel !== undefined && { cel: datos.cel?.trim() || null }),
         ...(emailNormalizado !== undefined && { email: emailNormalizado }),
+        ...(datos.observaciones !== undefined && { observaciones: datos.observaciones?.trim() || null }),
       },
     });
 

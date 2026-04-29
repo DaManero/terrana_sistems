@@ -49,6 +49,7 @@ interface Usuario {
   created_at: string;
   rol: Rol;
   direcciones?: Direccion[];
+  observaciones?: string;
 }
 
 interface UsuariosPaginados {
@@ -70,6 +71,7 @@ interface FormEdicionCliente {
   localidad: string;
   provincia: string;
   codigo_postal: string;
+  observaciones: string;
 }
 
 const ROL_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -102,6 +104,7 @@ export function TabUsuarios() {
     localidad: '',
     provincia: '',
     codigo_postal: '',
+    observaciones: '',
   });
 
   // ─── Roles para el selector ──────────────────────────────────────────────
@@ -150,6 +153,7 @@ export function TabUsuarios() {
       localidad: direccionPrincipal?.localidad ?? '',
       provincia: direccionPrincipal?.provincia ?? '',
       codigo_postal: direccionPrincipal?.codigo_postal ?? '',
+      observaciones: detalleActual.observaciones ?? '',
     });
   }, [detalleActual]);
 
@@ -211,6 +215,7 @@ export function TabUsuarios() {
         apellido: formEdicion.apellido,
         email: formEdicion.email,
         cel: formEdicion.cel,
+        observaciones: formEdicion.observaciones || undefined,
         direccion: {
           id: formEdicion.direccionId ?? undefined,
           calle: formEdicion.calle,
@@ -544,6 +549,17 @@ export function TabUsuarios() {
                     })}
                   </p>
                 </div>
+              </div>
+
+              <div className="col-span-2">
+                <Label className="text-muted-foreground text-xs">Observaciones</Label>
+                <textarea
+                  value={formEdicion.observaciones}
+                  onChange={(e) => setFormEdicion((prev) => ({ ...prev, observaciones: e.target.value }))}
+                  placeholder="Notas internas sobre el cliente..."
+                  rows={3}
+                  className="mt-0.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                />
               </div>
 
               <div>

@@ -214,6 +214,7 @@ model Venta {
   codigo_descuento_id  Int?
   lote_envio_id        Int?
   notas                String?
+  fecha_entrega        DateTime?
   creado_por           Int?
   created_at           DateTime @default(now())
   updated_at           DateTime @updatedAt

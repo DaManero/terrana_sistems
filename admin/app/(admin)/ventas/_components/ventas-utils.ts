@@ -111,6 +111,14 @@ export function formatFecha(fecha: string): string {
   });
 }
 
+export function formatSoloFecha(fecha: string): string {
+  return new Date(fecha).toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
 export function formatMonto(n: number | string): string {
   return `$${Number(n).toLocaleString('es-AR', {
     minimumFractionDigits: 2,
@@ -165,6 +173,7 @@ export interface VentaDetalle {
   domicilio_envio?: string;
   codigo_descuento?: { codigo: string } | null;
   notas?: string;
+  fecha_entrega?: string | null;
   items: VentaItem[];
   created_at: string;
 }
@@ -183,4 +192,5 @@ export interface VentaListItem {
   pago_estado: EstadoPago;
   items: { id: number }[];
   created_at: string;
+  fecha_entrega?: string | null;
 }

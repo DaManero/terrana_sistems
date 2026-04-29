@@ -36,6 +36,7 @@ import {
   estadoClase,
   pagoVariant,
   formatFecha,
+  formatSoloFecha,
   formatMonto,
 } from './ventas-utils';
 
@@ -114,8 +115,8 @@ export function TabVentas() {
   return (
     <div className="space-y-4">
       {/* ── Barra de filtros ─────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
           <SlidersHorizontal className="h-3.5 w-3.5" />
           <span className="text-xs font-medium">Filtros</span>
         </div>
@@ -127,7 +128,7 @@ export function TabVentas() {
             setPagina(1);
           }}
         >
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-36">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent>
@@ -147,7 +148,7 @@ export function TabVentas() {
             setPagina(1);
           }}
         >
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-36">
             <SelectValue placeholder="Estado pago" />
           </SelectTrigger>
           <SelectContent>
@@ -167,7 +168,7 @@ export function TabVentas() {
             setPagina(1);
           }}
         >
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="w-32">
             <SelectValue placeholder="Canal" />
           </SelectTrigger>
           <SelectContent>
@@ -183,7 +184,7 @@ export function TabVentas() {
         <div className="flex items-center gap-1">
           <Input
             type="date"
-            className="w-36 text-sm"
+            className="w-32 text-sm"
             value={fechaDesde}
             onChange={(e) => {
               setFechaDesde(e.target.value);
@@ -194,7 +195,7 @@ export function TabVentas() {
           <span className="text-muted-foreground text-xs px-0.5">–</span>
           <Input
             type="date"
-            className="w-36 text-sm"
+            className="w-32 text-sm"
             value={fechaHasta}
             onChange={(e) => {
               setFechaHasta(e.target.value);
@@ -211,23 +212,25 @@ export function TabVentas() {
           </Button>
         )}
 
-        <span className="ml-auto text-sm text-muted-foreground">
-          {isLoading ? '...' : `${totalRegistros} ${totalRegistros === 1 ? 'venta' : 'ventas'}`}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() => generarLotes.mutate()}
-          disabled={generarLotes.isPending}
-        >
-          <PackagePlus className="h-4 w-4" />
-          {generarLotes.isPending ? 'Generando...' : 'Generar lotes'}
-        </Button>
-        <Button size="sm" className="gap-1.5" onClick={() => setNuevaVentaOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Nueva venta
-        </Button>
+        <div className="flex items-center gap-2 ml-auto shrink-0">
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            {isLoading ? '...' : `${totalRegistros} ${totalRegistros === 1 ? 'venta' : 'ventas'}`}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => generarLotes.mutate()}
+            disabled={generarLotes.isPending}
+          >
+            <PackagePlus className="h-4 w-4" />
+            {generarLotes.isPending ? 'Generando...' : 'Generar lotes'}
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={() => setNuevaVentaOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Nueva venta
+          </Button>
+        </div>
       </div>
 
       {/* ── Tabla ────────────────────────────────────────────── */}
@@ -243,6 +246,7 @@ export function TabVentas() {
               <TableHead className="text-right">Total</TableHead>
               <TableHead className="text-center">Pago</TableHead>
               <TableHead className="text-center">Estado</TableHead>
+              <TableHead className="text-center">Entrega</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -250,7 +254,7 @@ export function TabVentas() {
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 9 }).map((_, j) => (
+                  {Array.from({ length: 10 }).map((_, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-5 w-full" />
                     </TableCell>
@@ -259,7 +263,7 @@ export function TabVentas() {
               ))
             ) : ventas.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-14 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-14 text-muted-foreground">
                   No se encontraron ventas
                   {hayFiltros && (
                     <span className="block text-xs mt-1">
@@ -285,7 +289,7 @@ export function TabVentas() {
                       {v.numero_pedido}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formatFecha(v.fecha)}
+                      {formatSoloFecha(v.fecha)}
                     </TableCell>
                     <TableCell>
                       <p className="text-sm font-medium leading-tight">{nombreCliente}</p>
@@ -313,6 +317,9 @@ export function TabVentas() {
                       >
                         {ESTADO_LABELS[v.estado] ?? v.estado}
                       </span>
+                    </TableCell>
+                    <TableCell className="text-center text-sm text-muted-foreground whitespace-nowrap">
+                      {v.fecha_entrega ? formatSoloFecha(v.fecha_entrega) : '—'}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-0.5">
